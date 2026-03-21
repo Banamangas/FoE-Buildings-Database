@@ -458,9 +458,10 @@ def main():
         if combine_army_stats:
             df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
         
-        if selected_building and selected_building != "":
+        _building_match = df_era_filtered[df_era_filtered['name'] == selected_building] if selected_building else pd.DataFrame()
+        if selected_building and selected_building != "" and not _building_match.empty:
             # Get the selected building data from the era-filtered dataframe
-            building_data = df_era_filtered[df_era_filtered['name'] == selected_building].iloc[0].copy()
+            building_data = _building_match.iloc[0].copy()
             
             # Apply per square calculation if enabled
             if show_per_square and 'Nbr of squares (Avg)' in building_data and building_data['Nbr of squares (Avg)'] > 0:
