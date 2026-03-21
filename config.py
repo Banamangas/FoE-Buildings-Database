@@ -1,22 +1,30 @@
 import logging
+import streamlit as st
 
 # --- Logging Setup ---
-# Basic configuration (can be customized further if needed)
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d')
 logger = logging.getLogger(__name__)
-# Optional: Add file handler if persistent logging is desired outside Streamlit console
-# logfile = logging.FileHandler('logfile.log')
-# logfile.setLevel(logging.INFO)
-# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# logfile.setFormatter(formatter)
-# logger.addHandler(logfile)
 
 # --- File Paths ---
-METADATA_FILE_PATH_TEMPLATE = "https://raw.githubusercontent.com/Banamangas/FoE-Buildings-Database/refs/heads/main/metadata-zz0-129.json" 
-DB_PATH = 'foe_buildings.db'
 ASSETS_PATH = 'assets'
 TRANSLATIONS_PATH = 'translations'
 APP_ICON = 'assets/icons/icon.png'
+
+# --- API Configuration ---
+# Set these in .streamlit/secrets.toml:
+#   [foe_api]
+#   url = "https://your-subdomain.duckdns.org"
+#   key = "foe_your_api_key_here"
+
+def get_api_config() -> tuple:
+    """Get API URL and key from Streamlit secrets."""
+    try:
+        api_url = st.secrets["foe_api"]["url"]
+        api_key = st.secrets["foe_api"]["key"]
+        return api_url.rstrip('/'), api_key
+    except KeyError:
+        st.error("API configuration not found in secrets. Please configure foe_api.url and foe_api.key in .streamlit/secrets.toml")
+        st.stop()
 
 # --- Game Data Constants ---
 ERAS_DICT = {
@@ -81,14 +89,12 @@ WEIGHTABLE_COLUMNS = [
     "Red GE Attack", "Red GE Defense", "Blue GE Attack", "Blue GE Defense",
     "Red QI Attack", "Red QI Defense", "Blue QI Attack", "Blue QI Defense",
     "finish_special_production"
-    # "QI Coin %", "QI Coin at start", "QI Supplies %", "QI Supplies at start", "QI Goods at start", "QI Units at start", "QA per hour", "QA Capacity"
 ]
 
-# Define column groups (moved from app logic)
-# Note: Translations for the display names will be handled by the translation module
+# Define column groups
 COLUMN_GROUPS = {
     "basic_info": {
-        "key": "basic_info", 
+        "key": "basic_info",
         "columns": ["Event", "Weighted Efficiency", "Total Score", "size", "Nbr of squares (Avg)", "Road", "Limited", "Ally room", "Population", "Happiness", "Quantity", "Source"]
     },
     "production": {
@@ -133,20 +139,19 @@ COLUMN_GROUPS = {
 }
 
 # Predefined column presets for different analysis types
-# Note: Translations for the display names will be handled by the translation module
 COLUMN_PRESETS = {
         "basic_analysis": {
             "name_key": "preset_basic_analysis",
             "columns": ["Event", "size", "Road", "Limited", "Ally room"]
         },
         "production_focus": {
-            "name_key": "preset_production_focus", 
+            "name_key": "preset_production_focus",
             "columns": ["Weighted Efficiency", "forge_points", "goods", "prev_age_goods", "next_age_goods", "special_goods", "guild_goods"]
         },
         "military_focus": {
             "name_key": "preset_military_focus",
-            "columns": ["Weighted Efficiency", "rogues", 
-                        "fast_units", "heavy_units", "ranged_units", "artillery_units", "light_units", 
+            "columns": ["Weighted Efficiency", "rogues",
+                        "fast_units", "heavy_units", "ranged_units", "artillery_units", "light_units",
                         "next_age_fast_units", "next_age_heavy_units", "next_age_ranged_units", "next_age_artillery_units", "next_age_light_units"]
         },
         "ge_focus": {
@@ -164,7 +169,7 @@ COLUMN_PRESETS = {
         },
         "consumables_focus": {
             "name_key": "preset_consumables_focus",
-            "columns": ["Weighted Efficiency", "finish_special_production", "finish_goods_production", "rush_mass_supplies_24h", 
+            "columns": ["Weighted Efficiency", "finish_special_production", "finish_goods_production", "rush_mass_supplies_24h",
                         "store_kit", "mass_self_aid_kit", "self_aid_kit", "renovation_kit", "one_up_kit"]
         },
         "fsp_usage": {
@@ -173,7 +178,7 @@ COLUMN_PRESETS = {
         }
     }
 
-# Columns to exclude from certain operations (like icon loading or per-square calc)
+# Columns to exclude from certain operations
 ICON_EXCLUDED_COLUMNS = {
     'name', 'Translated Era', 'Total Score',
     'Unit type', 'Next Age Unit type',
@@ -196,7 +201,7 @@ PERCENTAGE_COLUMNS = {
     "Special Goods Production %", "Medal Boost", "Goods Boost"
 }
 
-# Additive metrics (removed boost metrics as they'll be integrated)
+# Additive metrics
 ADDITIVE_METRICS = [
     "coins", "supplies", "medals", "forge_points", "forgepoint_package", "goods",
     "next_age_goods", "prev_age_goods", "special_goods", "guild_goods", "Red Attack", "Red Defense", "Blue Attack", "Blue Defense",
@@ -207,10 +212,10 @@ ADDITIVE_METRICS = [
     "finish_special_production"
 ]
 
-# Multiplicative metrics that will be converted and added to their base metrics
+# Multiplicative metrics
 BOOST_TO_BASE_MAPPING = {
     "FP boost": "forge_points",
-    "Goods Boost": ["goods", "prev_age_goods", "next_age_goods"],  # Affects all goods types
+    "Goods Boost": ["goods", "prev_age_goods", "next_age_goods"],
     "Guild Goods Production %": "guild_goods",
     "Special Goods Production %": "special_goods"
 }
@@ -238,7 +243,7 @@ USER_CONTEXT_FIELDS = {
     "goods_next_production": {
         "label_key": "goods_next_production_label",
         "help_key": "goods_next_production_help",
-        "default": 0, 
+        "default": 0,
         "related_boosts": ["Goods Boost"]
     },
     "guild_goods_production": {
@@ -264,14 +269,14 @@ USER_BOOST_FIELDS = {
         "related_context": "fp_daily_production"
     },
     "current_goods_boost": {
-        "label_key": "current_goods_boost_label", 
+        "label_key": "current_goods_boost_label",
         "help_key": "current_goods_boost_help",
         "default": 0.0,
         "related_context": ["goods_current_production", "goods_previous_production", "goods_next_production"]
     },
     "current_guild_goods_boost": {
         "label_key": "current_guild_goods_boost_label",
-        "help_key": "current_guild_goods_boost_help", 
+        "help_key": "current_guild_goods_boost_help",
         "default": 0.0,
         "related_context": "guild_goods_production"
     },

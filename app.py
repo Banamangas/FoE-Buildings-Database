@@ -63,16 +63,13 @@ def main():
     st.markdown(translations.get_text("description", lang_code))
 
     # --- Data Loading (Cached) ---
-    @st.cache_data
-    def load_cached_data():
-        metadata_file_path = config.METADATA_FILE_PATH_TEMPLATE
-        return data_loader.load_and_process_data(metadata_file_path)
-    
+    # load_and_process_data() fetches from the VPS API and caches for 23 hours.
+    # To refresh immediately after a data update, use data_loader.clear_cache().
     try:
-        df_original = load_cached_data()
+        df_original = data_loader.load_and_process_data()
 
         if df_original.empty:
-            st.warning("No building data loaded. Please check the metadata file and logs.")
+            st.warning("No building data loaded. The API may be updating — please try again shortly.")
             st.stop()
 
         # Round float columns (can be done earlier in data_loader if preferred)

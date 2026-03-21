@@ -1,173 +1,98 @@
-import json
-import re
+"""
+Building Images
+
+Resolves building asset IDs to their full CDN image URLs using the
+ForgeHX hash map fetched from the VPS API (/data/forgehx).
+
+Image URL format:
+    https://foezz.innogamescdn.com/assets/city/buildings/W_SS_MultiAge_XXX-{hash}.png
+"""
+
 import logging
 from typing import Dict, Optional
-import config
+
 import streamlit as st
 
-# Use logger from config
+import config
+import data_loader
+
 logger = config.logger
+
+FORGEHX_IMAGE_BASE = "https://foezz.innogamescdn.com/assets"
+
+
+def _ss_key(asset_id: str) -> str:
+    """Convert a building asset ID to its _SS_ ForgeHX path key.
+
+    Example: 'W_MultiAge_FOO' -> '/city/buildings/W_SS_MultiAge_FOO.png'
+    """
+    i = asset_id.index("_")
+    return f"/city/buildings/{asset_id[:i]}_SS_{asset_id[i + 1:]}.png"
 
 
 class BuildingImageManager:
-    """Manages building image URL mappings from FoE game assets."""
-    
-    def __init__(self, metadata_file: str = "metadata-zz0-129.json", image_file: str = "img-zz0-94.json"):
-        self.metadata_file = metadata_file
-        self.image_file = image_file
-        self.building_images: Dict[str, str] = {}
-        self._load_building_images()
-    
-    @st.cache_data
-    def _load_building_images(_self) -> None:
-        """Load and process building images from JSON files."""
+    """Resolves building asset IDs to CDN image URLs via the ForgeHX map."""
+
+    def __init__(self):
+        # Loaded lazily on first lookup; get_forgehx_data() is @st.cache_data
+        # so this is effectively free after the first call.
+        self._forgehx: Dict[str, str] = {}
+        self._loaded = False
+
+    def _ensure_loaded(self):
+        if not self._loaded:
+            self._forgehx = data_loader.get_forgehx_data()
+            self._loaded = True
+
+    def get_building_image_url(self, asset_id: str) -> Optional[str]:
+        """Return the full CDN URL for a building's screenshot image, or None."""
+        if not asset_id:
+            return None
+        self._ensure_loaded()
         try:
-            # Load metadata and image files
-            with open(_self.metadata_file, "r", encoding='utf-8') as f:
-                metadata = json.load(f)
-            
-            with open(_self.image_file, "r", encoding='utf-8') as f:
-                image_data = json.load(f)
-            
-            # Create list of building ID mappings for W_ prefixed buildings
-            building_mappings = []
-            for building in metadata:
-                if building["asset_id"].startswith("W_"):
-                    # Transform W_ to W_SS_ for image matching
-                    transformed_id = re.sub(r"W_", "W_SS_", building["asset_id"])
-                    building_mappings.append((transformed_id, building['asset_id']))
-                elif building["asset_id"].startswith("R_"):
-                    # Transform R_ to R_SS_ for image matching
-                    transformed_id = re.sub(r"R_", "R_SS_", building["asset_id"])
-                    building_mappings.append((transformed_id, building['asset_id']))
-                elif building["asset_id"].startswith("L_"):
-                    # Transform L_ to L_SS_ for image matching
-                    transformed_id = re.sub(r"L_", "L_SS_", building["asset_id"])
-                    building_mappings.append((transformed_id, building['asset_id']))
-            
-            # Create dictionary mapping building IDs to image URLs
-            # Sort building mappings by transformed_id length (longest first) to prioritize exact matches
-            building_mappings_sorted = sorted(building_mappings, key=lambda x: len(x[0]), reverse=True)
-            
-            for img_path, img_data in image_data.items():
-                # Extract filename from path
-                img_filename = img_path.split("/")[-1] if "/" in img_path and (img_path.endswith(".png") or img_path.endswith(".jpg")) else None
-                
-                if img_filename is not None:
-                    # Remove file extension for precise matching
-                    img_name_without_ext = img_filename.rsplit('.', 1)[0]
-                    
-                    # Check if any building ID matches this image
-                    for transformed_id, original_id in building_mappings_sorted:
-                        # Simple substring check, but with longest IDs first to avoid conflicts
-                        if transformed_id in img_name_without_ext:
-                            # Additional check: ensure it's not a partial match by checking boundaries
-                            # Find the position of the match
-                            match_pos = img_name_without_ext.find(transformed_id)
-                            match_end = match_pos + len(transformed_id)
-                            
-                            # Check if the match is at word boundaries (not preceded/followed by alphanumeric)
-                            is_valid_match = True
-                            if match_pos > 0 and img_name_without_ext[match_pos - 1].isalnum():
-                                is_valid_match = False
-                            if match_end < len(img_name_without_ext) and img_name_without_ext[match_end].isalnum():
-                                is_valid_match = False
-                            
-                            if is_valid_match:
-                                # Construct the full image URL
-                                processed_img_path = re.sub(r'(.*?)\.png', rf'\1-{img_data}.png', img_path)
-                                full_url = 'https://foezz.innogamescdn.com/assets' + processed_img_path
-                                _self.building_images[original_id] = full_url
-                                break
+            key = _ss_key(asset_id)
+            h = self._forgehx.get(key)
+            if h:
+                return f"{FORGEHX_IMAGE_BASE}{key[:-4]}-{h}.png"
+        except ValueError:
+            pass
+        return None
 
-            logger.info(f"Loaded {len(_self.building_images)} building image mappings")
-            
-        except FileNotFoundError as e:
-            logger.error(f"Image data files not found: {e}")
-            _self.building_images = {}
-        except json.JSONDecodeError as e:
-            logger.error(f"Error parsing JSON files: {e}")
-            _self.building_images = {}
-        except Exception as e:
-            logger.error(f"Unexpected error loading building images: {e}")
-            _self.building_images = {}
-    
-    def get_building_image_url(self, building_id: str) -> Optional[str]:
-        """
-        Get the image URL for a building by its ID.
-        
-        Args:
-            building_id: The building ID to look up
-            
-        Returns:
-            The image URL if found, None otherwise
-        """
-        return self.building_images.get(building_id)
-    
-    def has_image(self, building_id: str) -> bool:
-        """
-        Check if a building has an associated image.
-        
-        Args:
-            building_id: The building ID to check
-            
-        Returns:
-            True if image exists, False otherwise
-        """
-        return building_id in self.building_images
-    
+    def has_image(self, asset_id: str) -> bool:
+        """Return True if a screenshot image exists for this asset ID."""
+        if not asset_id:
+            return False
+        self._ensure_loaded()
+        try:
+            return _ss_key(asset_id) in self._forgehx
+        except ValueError:
+            return False
+
     def get_all_mappings(self) -> Dict[str, str]:
-        """
-        Get all building ID to image URL mappings.
-        
-        Returns:
-            Dictionary of building_id -> image_url mappings
-        """
-        return self.building_images.copy()
-    
+        """Return all asset_id -> image URL mappings."""
+        self._ensure_loaded()
+        result = {}
+        for key, h in self._forgehx.items():
+            # Reverse the key back to an asset_id is non-trivial; return URL map keyed by path
+            result[key] = f"{FORGEHX_IMAGE_BASE}{key[:-4]}-{h}.png"
+        return result
+
     def get_stats(self) -> Dict[str, int]:
-        """
-        Get statistics about loaded images.
-        
-        Returns:
-            Dictionary with statistics
-        """
-        return {
-            "total_images": len(self.building_images),
-            "unique_buildings": len(set(self.building_images.keys()))
-        }
+        self._ensure_loaded()
+        return {"total_images": len(self._forgehx)}
 
 
-# Global instance for easy access
-_image_manager = None
 @st.cache_resource
 def get_image_manager() -> BuildingImageManager:
-    """Get the global BuildingImageManager instance."""
-    global _image_manager
-    if _image_manager is None:
-        _image_manager = BuildingImageManager()
-    return _image_manager
+    """Return the singleton BuildingImageManager (cached for the app lifetime)."""
+    return BuildingImageManager()
 
-def get_building_image_url(building_id: str) -> Optional[str]:
-    """
-    Convenience function to get building image URL.
-    
-    Args:
-        building_id: The building ID to look up
-        
-    Returns:
-        The image URL if found, None otherwise
-    """
-    return get_image_manager().get_building_image_url(building_id)
 
-def has_building_image(building_id: str) -> bool:
-    """
-    Convenience function to check if building has image.
-    
-    Args:
-        building_id: The building ID to check
-        
-    Returns:
-        True if image exists, False otherwise
-    """
-    return get_image_manager().has_image(building_id) 
+def get_building_image_url(asset_id: str) -> Optional[str]:
+    """Convenience wrapper: get image URL for a building asset ID."""
+    return get_image_manager().get_building_image_url(asset_id)
+
+
+def has_building_image(asset_id: str) -> bool:
+    """Convenience wrapper: check if a building has an image."""
+    return get_image_manager().has_image(asset_id)
