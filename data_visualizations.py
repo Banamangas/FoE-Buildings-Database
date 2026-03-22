@@ -442,7 +442,10 @@ class DataVisualizationManager:
             
             # Add values for each building
             for building_name in selected_buildings:
-                building_data = comparison_df[comparison_df['name'] == building_name].iloc[0]
+                _rows = comparison_df[comparison_df['name'] == building_name]
+                if _rows.empty:
+                    continue
+                building_data = _rows.iloc[0]
                 value = building_data[metric]
                 
                 # Format value
@@ -598,7 +601,10 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             # Get all stats that at least one of the selected buildings has (non-zero values)
             selected_building_data = []
             for building_name in selected_buildings:
-                building_data = df[df['name'] == building_name].iloc[0]
+                _rows = df[df['name'] == building_name]
+                if _rows.empty:
+                    continue
+                building_data = _rows.iloc[0]
                 selected_building_data.append(building_data)
             
             for col in viz_manager.numeric_columns:
@@ -653,8 +659,12 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                     
                     for idx, building_name in enumerate(selected_buildings):
                         with summary_cols[idx]:
-                            building_data = df[df['name'] == building_name].iloc[0]
-                            
+                            _rows = df[df['name'] == building_name]
+                            if _rows.empty:
+                                continue
+                            building_idx = _rows.index[0]
+                            building_data = df.loc[building_idx]
+
                             # Add building image above the summary
                             building_id = building_data.get('id')
                             if building_id and building_images.has_building_image(building_id):
@@ -664,8 +674,8 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                                 st.markdown(
                                     f"""
                                     <div style="text-align: center;">
-                                        <img src="{image_url}" 
-                                             style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;" 
+                                        <img src="{image_url}"
+                                             style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;"
                                              alt="{building_name}">
                                         <p style="margin-top: 5px; font-size: 14px; color: #666;">{building_name}</p>
                                     </div>
@@ -676,14 +686,14 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                                 # Placeholder for buildings without images
                                 st.markdown(f"**{building_name}**")
                                 st.markdown("---")
-                            
+
                             # Calculate building's rank in each metric
                             ranks = []
                             for metric in comparison_metrics:
                                 if pd.api.types.is_numeric_dtype(df[metric]):
-                                    rank = df[metric].rank(ascending=False, method='min')[building_data.name]
+                                    rank = df[metric].rank(ascending=False, method='min')[building_idx]
                                     ranks.append(f"#{int(rank)} in {viz_manager._translate_column(metric)}")
-                            
+
                             if ranks:
                                 st.write("**Rankings:**")
                                 for rank in ranks:  # Show top 3 rankings
@@ -705,8 +715,12 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                 
                 for idx, building_name in enumerate(selected_buildings):
                     with summary_cols[idx]:
-                        building_data = df[df['name'] == building_name].iloc[0]
-                        
+                        _rows = df[df['name'] == building_name]
+                        if _rows.empty:
+                            continue
+                        building_idx = _rows.index[0]
+                        building_data = df.loc[building_idx]
+
                         # Add building image above the summary
                         building_id = building_data.get('id')
                         if building_id and building_images.has_building_image(building_id):
@@ -716,8 +730,8 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                             st.markdown(
                                 f"""
                                 <div style="text-align: center;">
-                                    <img src="{image_url}" 
-                                         style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;" 
+                                    <img src="{image_url}"
+                                         style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;"
                                          alt="{building_name}">
                                     <p style="margin-top: 5px; font-size: 14px; color: #666;">{building_name}</p>
                                 </div>
@@ -728,14 +742,14 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                             # Placeholder for buildings without images
                             st.markdown(f"**{building_name}**")
                             st.markdown("---")
-                        
+
                         # Calculate building's rank in each metric
                         ranks = []
                         for metric in comparison_metrics:
                             if pd.api.types.is_numeric_dtype(df[metric]):
-                                rank = df[metric].rank(ascending=False, method='min')[building_data.name]
+                                rank = df[metric].rank(ascending=False, method='min')[building_idx]
                                 ranks.append(f"#{int(rank)} in {viz_manager._translate_column(metric)}")
-                        
+
                         if ranks:
                             st.write("**Rankings:**")
                             for rank in ranks:  # Show top 3 rankings
