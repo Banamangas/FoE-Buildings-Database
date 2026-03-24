@@ -161,7 +161,6 @@ def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str
             
             elif boost_metric == "Goods Boost":
                 # Goods Boost affects multiple goods types
-                base_metrics = base_metric_or_list  # This is a list
                 context_keys = ["goods_current_production", "goods_previous_production", "goods_next_production"]
                 base_metric_names = ["goods", "prev_age_goods", "next_age_goods"]
                 
