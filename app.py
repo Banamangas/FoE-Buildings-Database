@@ -763,7 +763,7 @@ def main():
 
         # Calculate efficiency if weights are set (after processing weights subtab)
         weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
-        logger.info(f"Main Analysis: Weights active: {weights_active}, User weights: {user_weights}")
+        logger.debug(f"Main Analysis: Weights active: {weights_active}, User weights: {user_weights}")
         
         if weights_active and not df_viz_filtered.empty:
             logger.info("Applying efficiency calculations to main analysis table")

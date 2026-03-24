@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import logging
+from io import BytesIO
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 import config
@@ -886,9 +887,6 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 
                 with col1:
                     # CSV Export
-                    from io import BytesIO
-                    from datetime import datetime
-                    
                     buffer_csv = BytesIO()
                     buffer_csv.write('\ufeff'.encode('utf-8'))  # UTF-8 BOM
                     csv_string = df_export.to_csv(index=False, sep=";")

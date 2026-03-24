@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, Optional
 import pandas as pd
 import streamlit as st
 
@@ -190,7 +190,7 @@ def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str
     
     return enhanced_row
 
-def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], user_context: Dict[str, float], user_boosts: Dict[str, float] = None) -> pd.DataFrame:
+def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], user_context: Dict[str, float], user_boosts: Optional[Dict[str, float]] = None) -> pd.DataFrame:
     """Calculate weighted efficiency using direct weighted sum with integrated boosts."""
     logger.info(f"Calculating direct weighted efficiency for {len(df)} buildings")
     
@@ -249,7 +249,7 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
     return df
 
 # --- Legacy function for backward compatibility ---
-def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], era_stats_df: pd.DataFrame, df_original: pd.DataFrame, selected_translated_era: str, lang_code: str, user_context: Dict[str, float] = None, user_boosts: Dict[str, float] = None) -> pd.DataFrame:
+def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], era_stats_df: pd.DataFrame, df_original: pd.DataFrame, selected_translated_era: str, lang_code: str, user_context: Optional[Dict[str, float]] = None, user_boosts: Optional[Dict[str, float]] = None) -> pd.DataFrame:
     """Legacy wrapper that calls the new direct weighted efficiency calculation."""
     if user_context is None:
         # Use default context if none provided
