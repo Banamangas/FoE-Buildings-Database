@@ -5,7 +5,6 @@ import streamlit as st
 
 # Import configurations and logger
 from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, logger
-from translations import translate_era_key # Needed for reverse mapping
 
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py

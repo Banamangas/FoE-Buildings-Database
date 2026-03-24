@@ -5,11 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid, ColumnsAutoSizeMode, AgGridTheme, GridUpdateMode, DataReturnMode, JsCode 
-from st_aggrid.grid_options_builder import GridOptionsBuilder
-from streamlit_dynamic_filters import DynamicFilters
+from st_aggrid import AgGrid, AgGridTheme, DataReturnMode, JsCode 
 import json
-import numpy as np
 
 # --- Local Modules Imports ---
 import config

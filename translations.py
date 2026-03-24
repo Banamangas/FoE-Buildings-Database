@@ -58,15 +58,6 @@ def get_text(key: str, lang_code: str) -> str:
     return ALL_UI_TRANSLATIONS.get(lang_code, {}).get(key, 
            ALL_UI_TRANSLATIONS.get('en', {}).get(key, key)) # Fallback to English, then key
 
-# --- Per Square Text Translations ---
-PER_SQUARE_TRANSLATIONS = {
-    "en": "Display values per square",
-    "fr": "Afficher les valeurs par case"
-}
-
-def get_per_square_text(lang_code: str) -> str:
-    return PER_SQUARE_TRANSLATIONS.get(lang_code, PER_SQUARE_TRANSLATIONS["en"])
-
 # --- Column Name Translations ---
 # Load all column translations
 ALL_COLUMN_TRANSLATIONS = {
