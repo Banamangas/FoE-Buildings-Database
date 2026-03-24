@@ -185,10 +185,10 @@ ICON_EXCLUDED_COLUMNS = {
     'Weighted Efficiency', 'Quantity', 'Source'
 }
 
-PER_SQUARE_EXCLUDED_COLUMNS = [
+PER_SQUARE_EXCLUDED_COLUMNS = {
     'name', 'Event', 'Translated Era', 'Nbr of squares (Avg)', 'Road', 'Limited', 'Ally room', 'size',
     'Unit type', 'Next Age Unit type', 'Other productions', 'Weighted Efficiency', 'Total Score', 'Quantity', 'Source'
-]
+}
 
 # Columns formatted as percentages
 PERCENTAGE_COLUMNS = {
