@@ -95,7 +95,7 @@ def load_and_process_data() -> pd.DataFrame:
         rows.extend(page["buildings"])
         offset += _PAGE_SIZE
 
-    logger.info(f"Loaded {len(rows)} building records from API (total reported: {total})")
+    logger.info("Loaded %d building records from API", len(rows))
 
     df = pd.DataFrame(rows)
 
