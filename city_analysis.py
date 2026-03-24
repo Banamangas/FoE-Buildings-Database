@@ -415,7 +415,7 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
                 building_entry['Source'] = translations.get_text("inventory", lang_code)
                 total_quantity += quantity
             else:  # city
-                quantity = data.get('count', 1) if isinstance(data, dict) else 1
+                quantity = data.get('quantity', data.get('count', 1)) if isinstance(data, dict) else 1
                 building_entry['Quantity'] = quantity
                 building_entry['Source'] = translations.get_text("city", lang_code)
                 total_quantity += quantity
