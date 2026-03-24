@@ -35,11 +35,10 @@ from translations import translate_era_key  # Needed for reverse mapping
 **File:** `app.py:8-12`
 
 Remove the following imports (all confirmed unused by the code review):
-- `ColumnsAutoSizeMode` (from `st_aggrid`)
-- `GridUpdateMode` (from `st_aggrid`)
-- `GridOptionsBuilder` (from `st_aggrid`)
-- `DynamicFilters` (from `streamlit_dynamic_filters`)
-- `np` (numpy)
+- `ColumnsAutoSizeMode` and `GridUpdateMode` — **partial edit** of their import line, which also contains used symbols (`AgGrid`, `AgGridTheme`, `DataReturnMode`, `JsCode`). Remove only these two names; do not delete the whole line.
+- `GridOptionsBuilder` (`from st_aggrid.grid_options_builder import GridOptionsBuilder`) — full line deletion
+- `DynamicFilters` (`from streamlit_dynamic_filters import DynamicFilters`) — full line deletion
+- `np` (`import numpy as np`) — full line deletion
 
 ---
 
