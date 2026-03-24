@@ -517,7 +517,6 @@ class DataVisualizationManager:
             )
         
         st.subheader(translations.get_text("building_comparison_table", self.lang_code) + (" - " + translations.get_text("stats_per_square", self.lang_code) if show_per_square else ""))
-        # display_df.drop(columns=['Metric'], inplace=True)
         st.dataframe(
             styled_df,
             column_config=column_config,
