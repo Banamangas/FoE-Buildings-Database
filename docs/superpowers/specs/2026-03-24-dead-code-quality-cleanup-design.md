@@ -19,7 +19,7 @@ Pure deletions. No logic is affected.
 
 ### #080 — Dead import in `calculations.py`
 
-**File:** `calculations.py:7`
+**File:** `calculations.py:8`
 
 Remove:
 ```python
