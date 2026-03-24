@@ -296,10 +296,7 @@ def validate_building_data(building_data: Dict[str, Any], df_original: pd.DataFr
         else:
             # Handle legacy format where data might be just quantity
             building_id = unique_key
-        
-        # For era-specific entries, check the base building ID
-        base_building_id = building_id.split('_')[0] + '_' + '_'.join(building_id.split('_')[1:-1]) if '_' in building_id and building_id.count('_') > 1 else building_id
-        
+
         if building_id in db_building_ids:
             valid_data[unique_key] = data
         else:
