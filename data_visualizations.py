@@ -528,7 +528,7 @@ class DataVisualizationManager:
         )
 
 
-def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square: bool = False, combine_army_stats: bool = False) -> None:
+def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square: bool = False) -> None:
     """Main function to render all data visualization components."""
     
     if df.empty:

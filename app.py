@@ -1397,7 +1397,7 @@ def main():
                         df_viz_display[col] = (df_viz_display[col] / divisor_col).round(8)
         
         # Render the visualizations
-        data_visualizations.render_data_visualizations(df_viz_display, lang_code, show_per_square, combine_army_stats)
+        data_visualizations.render_data_visualizations(df_viz_display, lang_code, show_per_square)
     
 
 
