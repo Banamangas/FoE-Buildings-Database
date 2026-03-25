@@ -743,7 +743,6 @@ def main():
             translations.get_text("weights", lang_code),
             translations.get_text("consumables_analysis", lang_code),
             translations.get_text("qi_boosts_analysis", lang_code)
-            # translations.get_text("qi_optimizer", lang_code)
         ]
 
         selected_subtab = st.radio(
@@ -1236,10 +1235,6 @@ def main():
                 else:
                     st.info(translations.get_text("select_qi_boosts_to_analyze", lang_code))
         
-        # --- QI Optimizer Subtab ---
-        # with analysis_subtabs[4]:
-            # qi_optimizer_test.render_qi_optimizer(df_viz_filtered, lang_code, cached_image_manager)
-    
     # --- City Analysis Tab ---
     if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 2:
         
