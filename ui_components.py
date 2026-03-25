@@ -354,17 +354,17 @@ def build_grid_options(df_display: pd.DataFrame,
         # --- Header Configuration (Icon / Default) ---
         if use_icons and col not in ICON_EXCLUDED_COLUMNS:
             icon_html = get_icon_html(col, show_labels, label_value=header_name)
+            # Icon columns are narrower than text columns; override base_config widths.
+            icon_config = {**base_config, "minWidth": 80, "maxWidth": 120}
             gb.configure_column(
                 col,
-                **base_config,
+                **icon_config,
                 headerComponent='CustomIconHeader',
                 headerComponentParams={
                     'headerContent': icon_html,
                     'enableFilter': True,
                     'enableSorting': True
                 },
-                minWidth=80,
-                maxWidth=120,
             )
         else:
             base_config["headerComponent"] = 'CustomIconHeader'
