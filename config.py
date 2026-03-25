@@ -77,6 +77,10 @@ ERAS_LEVEL_MAP = {
     1: "BronzeAge"
 }
 
+# --- Column Name Constants ---
+COL_ERA = 'Era'
+COL_NAME = 'name'
+
 # Columns that represent outputs for weighting
 WEIGHTABLE_COLUMNS = [
     "forge_points", "forgepoint_package",

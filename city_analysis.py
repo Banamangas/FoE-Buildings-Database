@@ -12,6 +12,15 @@ import calculations
 # Use logger from config
 logger = config.logger
 
+
+def filter_buildings_by_era(df: pd.DataFrame, era_level: int) -> pd.DataFrame:
+    """Return rows of df matching the era level, or the full df if era_level is not in ERAS_LEVEL_MAP."""
+    era_key = config.ERAS_LEVEL_MAP.get(era_level)
+    if era_key is None:
+        return df
+    return df[df[config.COL_ERA] == era_key]
+
+
 def render_paste_interface(data_type: str = "", label: str = "", help_text: str = "", placeholder_text: str = "", key: str = "", lang_code: str = "") -> Optional[str]:
     """Render a paste interface using text area with clear instructions.
     
@@ -397,13 +406,12 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
         
         # Filter by era if specified
         if era_level is not None:
-            era_key = config.ERAS_LEVEL_MAP.get(era_level)
-            if era_key:
-                building_rows = building_rows[building_rows['Era'] == era_key]
-                if building_rows.empty:
-                    logger.warning(f"Building '{building_id}' not found in era level {era_level} ({era_key})")
-                    continue
-        
+            filtered = filter_buildings_by_era(building_rows, era_level)
+            if filtered.empty:
+                logger.warning(f"Building '{building_id}' not found in era level {era_level} ({config.ERAS_LEVEL_MAP.get(era_level)})")
+                continue
+            building_rows = filtered
+
         # Handle multiple eras for the same building (if no era specified)
         for _, building_row in building_rows.iterrows():
             building_entry = building_row.copy()
@@ -738,69 +746,30 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 else:
                     all_building_data[unique_key]['city_quantity'] = data.get('quantity', 1)
         
-        # Create display dataframe using the merge function for consistency
-        display_entries = []
-        
-        for unique_key, quantities in all_building_data.items():
-            building_id = quantities['building_id']
-            era_level = quantities['era_level']
-            
-            # Get building data from database
-            building_rows = df_original[df_original['id'] == building_id]
-            
-            # Filter by era if specified
-            if era_level is not None:
-                era_key = config.ERAS_LEVEL_MAP.get(era_level)
-                if era_key:
-                    building_rows = building_rows[building_rows['Era'] == era_key]
-                    if building_rows.empty:
-                        logger.warning(f"Building '{building_id}' not found in era level {era_level} ({era_key})")
-                        continue
-            
-            for _, building_row in building_rows.iterrows():
-                # Add inventory entries
-                if quantities['inventory_quantity'] > 0:
-                    inventory_entry = building_row.copy()
-                    inventory_entry['Quantity'] = quantities['inventory_quantity']
-                    inventory_entry['Source'] = 'Inventory'
-                    display_entries.append(inventory_entry)
-                
-                # Add city entries
-                if quantities['city_quantity'] > 0:
-                    city_entry = building_row.copy()
-                    city_entry['Quantity'] = quantities['city_quantity']
-                    city_entry['Source'] = 'City'
-                    display_entries.append(city_entry)
-        
-        if display_entries:
-            # Create DataFrame
-            df_imported = pd.DataFrame(display_entries)
-            
-            # Ensure required columns exist
-            if 'Weighted Efficiency' not in df_imported.columns:
-                df_imported['Weighted Efficiency'] = 0.0
-            if 'Total Score' not in df_imported.columns:
-                df_imported['Total Score'] = 0.0
-            
-            # Apply efficiency calculations if weights are provided
-            weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
-            logger.info(f"City Analysis: Weights active: {weights_active}, User weights: {user_weights}")
-            
-            if weights_active:
-                try:
-                    df_imported = calculations.calculate_direct_weighted_efficiency(
-                        df=df_imported,
-                        user_weights=user_weights,
-                        user_context=user_context,
-                        user_boosts=user_boosts
-                    )
-                    logger.info("City Analysis: Efficiency calculations completed successfully")
-                except Exception as e:
-                    logger.error(f"Error applying efficiency calculations: {e}")
-                    show_toast_notification(f"Error calculating efficiency: {str(e)}", "error")
-            else:
-                logger.info("City Analysis: No active weights - efficiency columns remain at 0.0")
-            
+        # Build merged display dataframe using merge_with_database for both sources
+        merged_parts = []
+        if st.session_state.imported_inventory:
+            merged_inventory = merge_with_database(
+                st.session_state.imported_inventory, df_original,
+                source_type="inventory",
+                user_weights=user_weights, user_context=user_context,
+                user_boosts=user_boosts, lang_code=lang_code
+            )
+            if not merged_inventory.empty:
+                merged_parts.append(merged_inventory)
+        if st.session_state.imported_city:
+            merged_city = merge_with_database(
+                st.session_state.imported_city, df_original,
+                source_type="city",
+                user_weights=user_weights, user_context=user_context,
+                user_boosts=user_boosts, lang_code=lang_code
+            )
+            if not merged_city.empty:
+                merged_parts.append(merged_city)
+
+        df_imported = pd.concat(merged_parts, ignore_index=True) if merged_parts else pd.DataFrame()
+
+        if not df_imported.empty:
             # Save processed data to persistence
             save_to_session_state(all_building_data, "merged_data")
             
