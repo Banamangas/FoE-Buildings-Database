@@ -31,10 +31,6 @@ class ColumnSelector:
                 
         return available_columns
     
-    def _has_icon(self, col_name: str) -> bool:
-        """Check if a column has an associated icon."""
-        return col_name not in config.ICON_EXCLUDED_COLUMNS and ui_components.get_icon_base64(col_name) is not None
-    
     def _create_column_item(self, col: str, selected_columns: Set[str], key_suffix: str = "") -> bool:
         """Create a column selection item with icon and translated name."""
         translated_name = translations.translate_column(col, self.lang_code)
@@ -42,14 +38,14 @@ class ColumnSelector:
         is_selected = col in st.session_state.selected_columns_set
         # Include refresh counter in key to force widget recreation when buttons are clicked
         refresh_counter = st.session_state.get('column_selector_refresh', 0)
-        
-        if self._has_icon(col):
-            icon_base64 = ui_components.get_icon_base64(col)
+
+        icon_b64 = ui_components.get_icon_base64(col) if col not in config.ICON_EXCLUDED_COLUMNS else None
+        if icon_b64:
             # Create visual column item with icon
             col_container = st.container()
             with col_container:
                 checkbox_col, icon_col = st.columns([0.8, 0.2])
-                
+
                 with checkbox_col:
                     new_selection = st.checkbox(
                         label=translated_name,
@@ -57,16 +53,15 @@ class ColumnSelector:
                         key=f"enhanced_col_select_{col}{key_suffix}_r{refresh_counter}",
                         help=translated_name
                     )
-                
+
                 with icon_col:
-                    if icon_base64:
-                        st.markdown(f"""
-                        <div style="display: flex; justify-content: center; align-items: center; height: 24px;">
-                            <img src="data:image/png;base64,{icon_base64}" 
-                                 style="width: 20px; height: 20px;" 
-                                 title="{translated_name}">
-                        </div>
-                        """, unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: center; align-items: center; height: 24px;">
+                        <img src="data:image/png;base64,{icon_b64}"
+                             style="width: 20px; height: 20px;"
+                             title="{translated_name}">
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
             # Regular checkbox for columns without icons
             new_selection = st.checkbox(
