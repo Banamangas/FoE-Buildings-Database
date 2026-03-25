@@ -112,7 +112,6 @@ class DataVisualizationManager:
         # Customize layout
         fig.update_layout(
             title_x=0.5,
-            height=600,
             showlegend=True if color_by else False
         )
         
@@ -129,7 +128,7 @@ class DataVisualizationManager:
                     y=y_trend,
                     mode='lines',
                     name='Trend Line',
-                    line=dict(dash='dash', color='red', width=2),
+                    line=dict(dash='dash', color='rgba(255,255,255,0.7)', width=2),
                     showlegend=True
                 ))
             except Exception as e:
@@ -183,7 +182,7 @@ class DataVisualizationManager:
                 box=True
             )
         
-        fig.update_layout(title_x=0.5, height=500)
+        fig.update_layout(title_x=0.5)
         return fig
     
     def create_top_buildings_chart(self, metric_column: str, top_n: int = 10, chart_type: str = "bar") -> go.Figure:
@@ -228,9 +227,9 @@ class DataVisualizationManager:
                 title=f"Top {top_n} Buildings by {translated_name}"
             )
         
-        fig.update_layout(title_x=0.5, height=600)
+        fig.update_layout(title_x=0.5)
         return fig
-    
+
     def create_comparison_chart(self, selected_buildings: List[str], metrics: List[str], show_per_square: bool = False) -> go.Figure:
         """Create a radar/spider chart for building comparison."""
         
@@ -282,7 +281,6 @@ class DataVisualizationManager:
             showlegend=True,
             title=f"{translations.get_text('building_comparison', self.lang_code)} ({translations.get_text('normalized_0_100', self.lang_code)}){' - ' + translations.get_text('stats_per_square', self.lang_code) if show_per_square else ''}",
             title_x=0.25,
-            height=600
         )
         
         return fig
@@ -409,7 +407,6 @@ class DataVisualizationManager:
                     color_continuous_scale='RdYlGn',
                     title=translations.get_text("space_allocation_visualization", self.lang_code)
                 )
-                fig.update_layout(height=400)
                 st.plotly_chart(fig, width='stretch')
     
     def render_building_comparison_table(self, selected_buildings: List[str], selected_metrics: List[str], show_per_square: bool = False) -> None:
@@ -523,9 +520,8 @@ class DataVisualizationManager:
             styled_df,
             column_config=column_config,
             hide_index=True,
-            use_container_width=False,
-            height = 300 if len(styled_df.index) <= 10 else 600,
-            width = 600
+            use_container_width=True,
+            height=300 if len(styled_df.index) <= 10 else 600,
         )
 
 

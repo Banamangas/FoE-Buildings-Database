@@ -270,8 +270,10 @@ def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
             }}
 
             const normalized = (value - min) / (max - min);
-            const hue = normalized * 120; // 0 (red) to 120 (green)
-            const color = 'hsl(' + hue + ', 100%, 80%)'; // Lighter background
+            const r = Math.round(44 + normalized * (184 - 44));
+            const g = Math.round(62 + normalized * (162 - 62));
+            const b = Math.round(80 + normalized * (20 - 80));
+            const color = 'rgb(' + r + ',' + g + ',' + b + ')';
 
             // Return background color and ensure text is black and centered
             return {{ 'backgroundColor': color, 'color': 'black', 'fontWeight': 'bold', 'textAlign': 'center' }};
@@ -308,10 +310,13 @@ def build_grid_options(df_display: pd.DataFrame,
         # Set minimum width for columns
         if col == COL_NAME:
             min_width = 200
+            max_width = 300
         elif col == COL_EVENT:
             min_width = 150
+            max_width = None
         else:
             min_width = 100
+            max_width = None
 
         # Base configuration
         base_config = {
@@ -323,6 +328,8 @@ def build_grid_options(df_display: pd.DataFrame,
             "type": "customNumericColumn" if is_numeric else "customTextColumn",
             "minWidth": min_width
         }
+        if max_width is not None:
+            base_config["maxWidth"] = max_width
 
         # --- Apply percentage formatter ---
         if col in PERCENTAGE_COLUMNS:
@@ -355,7 +362,8 @@ def build_grid_options(df_display: pd.DataFrame,
                     'enableFilter': True,
                     'enableSorting': True
                 },
-                width=80
+                minWidth=80,
+                maxWidth=120,
             )
         else:
             base_config["headerComponent"] = 'CustomIconHeader'

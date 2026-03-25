@@ -24,6 +24,9 @@ import city_analysis
 # Use logger from config
 logger = config.logger
 
+if not os.path.exists(config.APP_ICON):
+    logger.warning("App icon not found at '%s'; page icon will be missing.", config.APP_ICON)
+
 # CSS that styles the main-tab radio group to look like tabs.
 # No runtime dependencies — defined once at module level.
 _TAB_STYLES_CSS = """
