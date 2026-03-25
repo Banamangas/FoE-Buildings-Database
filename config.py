@@ -190,6 +190,20 @@ PER_SQUARE_EXCLUDED_COLUMNS = [
     'Unit type', 'Next Age Unit type', 'Other productions', 'Weighted Efficiency', 'Total Score', 'Quantity', 'Source'
 ]
 
+# --- Column Name Constants ---
+# Use these instead of string literals to prevent typos and ease renaming.
+COL_NAME = 'name'
+COL_ERA = 'Era'
+COL_TRANSLATED_ERA = 'Translated Era'
+COL_EVENT = 'Event'
+COL_LIMITED = 'Limited'
+COL_ALLY_ROOM = 'Ally room'
+COL_ROAD = 'Road'
+COL_SIZE = 'Nbr of squares (Avg)'
+COL_ASSET_ID = 'asset_id'
+COL_WEIGHTED_EFFICIENCY = 'Weighted Efficiency'
+COL_TOTAL_SCORE = 'Total Score'
+
 # Columns formatted as percentages
 PERCENTAGE_COLUMNS = {
     "Red Attack", "Red Defense", "Blue Attack", "Blue Defense",

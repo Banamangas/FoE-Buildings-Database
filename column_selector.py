@@ -18,7 +18,7 @@ class ColumnSelector:
     def _get_available_columns(self) -> Dict[str, List[str]]:
         """Get all available columns organized by groups."""
         available_columns = {}
-        virtual_columns = ['Weighted Efficiency', 'Total Score']
+        virtual_columns = [config.COL_WEIGHTED_EFFICIENCY, config.COL_TOTAL_SCORE]
         
         for group_key, group_info in config.COLUMN_GROUPS.items():
             group_columns = []
@@ -87,7 +87,7 @@ class ColumnSelector:
                 col for col in preset_columns 
                 if any(col in group_cols for group_cols in self.available_columns.values())
             ]
-            return set(available_preset_columns + ['name'])  # Always include name
+            return set(available_preset_columns + [config.COL_NAME])  # Always include name
         return selected_columns
     
     def _filter_columns_by_search(self, search_term: str) -> Dict[str, List[str]]:
@@ -117,7 +117,7 @@ class ColumnSelector:
         priority = 0
         
         # Always put 'name' first
-        column_order_map['name'] = priority
+        column_order_map[config.COL_NAME] = priority
         priority += 1
         
         # Add columns in the order they appear in COLUMN_GROUPS
@@ -142,7 +142,7 @@ class ColumnSelector:
         if 'selected_columns_set' not in st.session_state:
             # Default selection
             default_columns = config.COLUMN_PRESETS["basic_analysis"]["columns"]
-            st.session_state.selected_columns_set = set(default_columns + ['name'])
+            st.session_state.selected_columns_set = set(default_columns + [config.COL_NAME])
         
         # Initialize a counter to force widget refresh when buttons are clicked
         if 'column_selector_refresh' not in st.session_state:
@@ -235,14 +235,14 @@ class ColumnSelector:
                     for group_cols in filtered_columns.values():
                         st.session_state.selected_columns_set.difference_update(group_cols)
                     # Always keep 'name' column
-                    st.session_state.selected_columns_set.add('name')
+                    st.session_state.selected_columns_set.add(config.COL_NAME)
                     st.session_state.column_selector_refresh += 1
                     st.rerun()
-        
+
         # Clear all button on its own row
-        if st.button(translations.get_text("clear_all_selections", lang_code=self.lang_code), 
+        if st.button(translations.get_text("clear_all_selections", lang_code=self.lang_code),
                     width='stretch', key="clear_all"):
-            st.session_state.selected_columns_set = {'name'}
+            st.session_state.selected_columns_set = {config.COL_NAME}
             st.session_state.column_selector_refresh += 1
             st.rerun()
         
@@ -278,13 +278,13 @@ class ColumnSelector:
                                key=f"deselect_all_{group_key}", width='stretch'):
                         st.session_state.selected_columns_set.difference_update(group_columns)
                         # Keep name column
-                        st.session_state.selected_columns_set.add('name')
+                        st.session_state.selected_columns_set.add(config.COL_NAME)
                         st.session_state.column_selector_refresh += 1
                         st.rerun()
                 
                 # Show columns in this group
                 for col in group_columns:
-                    if col == 'name':
+                    if col == config.COL_NAME:
                         continue  # Skip name as it's always selected
                     
                     new_selection = self._create_column_item(col, selected_columns, f"_{group_key}")
@@ -299,7 +299,7 @@ class ColumnSelector:
                     
         
         # Always ensure 'name' is selected
-        st.session_state.selected_columns_set.add('name')
+        st.session_state.selected_columns_set.add(config.COL_NAME)
         
         if changes_made:
             st.rerun()

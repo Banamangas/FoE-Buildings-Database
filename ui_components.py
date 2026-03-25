@@ -11,7 +11,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, ColumnsAutoSizeMode
 import streamlit as st
 
 # Import configurations and translations
-from config import ASSETS_PATH, ICON_EXCLUDED_COLUMNS, PERCENTAGE_COLUMNS, logger
+from config import ASSETS_PATH, ICON_EXCLUDED_COLUMNS, PERCENTAGE_COLUMNS, logger, COL_NAME, COL_EVENT, COL_WEIGHTED_EFFICIENCY
 from translations import translate_column # Import the specific function
 
 # --- Icon Handling ---
@@ -307,9 +307,9 @@ def build_grid_options(df_display: pd.DataFrame,
         is_numeric = pd.api.types.is_numeric_dtype(df_display[col])
         
         # Set minimum width for columns
-        if col == 'name':
+        if col == COL_NAME:
             min_width = 200
-        elif col == 'Event':
+        elif col == COL_EVENT:
             min_width = 150
         else:
             min_width = 100
@@ -334,7 +334,7 @@ def build_grid_options(df_display: pd.DataFrame,
             base_config["filterParams"] = {'valueFormatter': NOPERCENTAGE_FORMATTER}
 
         # --- Apply Heatmap Style to Weighted Efficiency ---
-        if col == 'Weighted Efficiency' and heatmap_style:
+        if col == COL_WEIGHTED_EFFICIENCY and heatmap_style:
              base_config["cellStyle"] = heatmap_style
 
         # --- Tooltip Logic ---

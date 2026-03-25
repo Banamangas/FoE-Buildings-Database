@@ -399,11 +399,11 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
         if era_level is not None:
             era_key = config.ERAS_LEVEL_MAP.get(era_level)
             if era_key:
-                building_rows = building_rows[building_rows['Era'] == era_key]
+                building_rows = building_rows[building_rows[config.COL_ERA] == era_key]
                 if building_rows.empty:
                     logger.warning(f"Building '{building_id}' not found in era level {era_level} ({era_key})")
                     continue
-        
+
         # Handle multiple eras for the same building (if no era specified)
         for _, building_row in building_rows.iterrows():
             building_entry = building_row.copy()
@@ -440,11 +440,11 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
     result_df = pd.DataFrame(building_entries)
     
     # Ensure required columns exist
-    if 'Weighted Efficiency' not in result_df.columns:
-        result_df['Weighted Efficiency'] = 0.0
-    if 'Total Score' not in result_df.columns:
-        result_df['Total Score'] = 0.0
-    
+    if config.COL_WEIGHTED_EFFICIENCY not in result_df.columns:
+        result_df[config.COL_WEIGHTED_EFFICIENCY] = 0.0
+    if config.COL_TOTAL_SCORE not in result_df.columns:
+        result_df[config.COL_TOTAL_SCORE] = 0.0
+
     # Calculate efficiency if weights are provided
     weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
     logger.info(f"Merge function: Weights active: {weights_active}, User weights: {user_weights}")
@@ -466,7 +466,7 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
         logger.info("No active weights - skipping efficiency calculations")
     
     # Log summary statistics
-    unique_buildings = result_df['name'].nunique() if 'name' in result_df.columns else 0
+    unique_buildings = result_df[config.COL_NAME].nunique() if config.COL_NAME in result_df.columns else 0
     logger.info(f"Merge completed: {len(result_df)} rows, {unique_buildings} unique buildings, {total_quantity} total items")
     
     return result_df
@@ -752,11 +752,11 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             if era_level is not None:
                 era_key = config.ERAS_LEVEL_MAP.get(era_level)
                 if era_key:
-                    building_rows = building_rows[building_rows['Era'] == era_key]
+                    building_rows = building_rows[building_rows[config.COL_ERA] == era_key]
                     if building_rows.empty:
                         logger.warning(f"Building '{building_id}' not found in era level {era_level} ({era_key})")
                         continue
-            
+
             for _, building_row in building_rows.iterrows():
                 # Add inventory entries
                 if quantities['inventory_quantity'] > 0:
@@ -777,10 +777,10 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             df_imported = pd.DataFrame(display_entries)
             
             # Ensure required columns exist
-            if 'Weighted Efficiency' not in df_imported.columns:
-                df_imported['Weighted Efficiency'] = 0.0
-            if 'Total Score' not in df_imported.columns:
-                df_imported['Total Score'] = 0.0
+            if config.COL_WEIGHTED_EFFICIENCY not in df_imported.columns:
+                df_imported[config.COL_WEIGHTED_EFFICIENCY] = 0.0
+            if config.COL_TOTAL_SCORE not in df_imported.columns:
+                df_imported[config.COL_TOTAL_SCORE] = 0.0
             
             # Apply efficiency calculations if weights are provided
             weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
@@ -815,7 +815,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             st.subheader("🏗️ " + translations.get_text("buildings_table", lang_code))
             
             # Define required columns in specific order: Name, Event, Era, Source, Quantity, Weighted Efficiency, Total Score
-            required_columns_order = ['name', 'Event', 'Translated Era', 'Source', 'Quantity', 'Weighted Efficiency', 'Total Score']
+            required_columns_order = [config.COL_NAME, config.COL_EVENT, config.COL_TRANSLATED_ERA, 'Source', 'Quantity', config.COL_WEIGHTED_EFFICIENCY, config.COL_TOTAL_SCORE]
             
             # Start with required columns that exist in the dataframe
             ordered_columns = []
@@ -835,15 +835,15 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 df_table = df_display[available_columns].copy()
                 
                 # Sort by name for better organization
-                df_table = df_table.sort_values(by='name', ascending=True)
+                df_table = df_table.sort_values(by=config.COL_NAME, ascending=True)
                 
                 # Configure AgGrid for city analysis using existing ui_components
                 from st_aggrid import AgGrid, AgGridTheme, ColumnsAutoSizeMode
                 import ui_components
                 
                 # Calculate efficiency range for heatmap (if Weighted Efficiency exists)
-                eff_min = df_table['Weighted Efficiency'].min() if 'Weighted Efficiency' in df_table.columns and not df_table.empty else 0
-                eff_max = df_table['Weighted Efficiency'].max() if 'Weighted Efficiency' in df_table.columns and not df_table.empty else 0
+                eff_min = df_table[config.COL_WEIGHTED_EFFICIENCY].min() if config.COL_WEIGHTED_EFFICIENCY in df_table.columns and not df_table.empty else 0
+                eff_max = df_table[config.COL_WEIGHTED_EFFICIENCY].max() if config.COL_WEIGHTED_EFFICIENCY in df_table.columns and not df_table.empty else 0
                 if pd.isna(eff_min): eff_min = 0
                 if pd.isna(eff_max): eff_max = 0
                 

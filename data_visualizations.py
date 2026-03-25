@@ -29,7 +29,7 @@ class DataVisualizationManager:
         
         numeric_cols = []
         for col in ordered_columns:
-            if col in self.df.columns and col not in ['name']:
+            if col in self.df.columns and col not in [config.COL_NAME]:
                 # Check if column is numeric but not boolean
                 if pd.api.types.is_numeric_dtype(self.df[col]) and not pd.api.types.is_bool_dtype(self.df[col]):
                     numeric_cols.append(col)
@@ -44,7 +44,7 @@ class DataVisualizationManager:
         categorical_cols = []
         for col in self.df.columns:
             if not pd.api.types.is_numeric_dtype(self.df[col]):
-                if col in visible_columns and col not in ['name'] and self.df[col].nunique() < 20:  # Reasonable number of categories
+                if col in visible_columns and col not in [config.COL_NAME] and self.df[col].nunique() < 20:  # Reasonable number of categories
                     categorical_cols.append(col)
         return sorted(categorical_cols)
     
@@ -74,7 +74,7 @@ class DataVisualizationManager:
         hover_template += f"{self._translate_column(x_column)}: %{{x}}<br>"
         hover_template += f"{self._translate_column(y_column)}: %{{y}}<br>"
         
-        customdata = [plot_df['name'].tolist()]
+        customdata = [plot_df[config.COL_NAME].tolist()]
         
         # Add color information if specified
         if color_by and color_by in plot_df.columns:
@@ -104,7 +104,7 @@ class DataVisualizationManager:
                 color_by: self._translate_column(color_by) if color_by else None,
                 size_by: self._translate_column(size_by) if size_by else None
             },
-            hover_name='name'
+            hover_name=config.COL_NAME
         )
         
         # Customize layout
@@ -200,29 +200,29 @@ class DataVisualizationManager:
         if chart_type == "bar":
             fig = px.bar(
                 plot_df,
-                x='name',
+                x=config.COL_NAME,
                 y=metric_column,
                 title=f"Top {top_n} Buildings by {translated_name}",
-                labels={'name': 'Building Name', metric_column: translated_name}
+                labels={config.COL_NAME: 'Building Name', metric_column: translated_name}
             )
             fig.update_xaxes(tickangle=45)
-        
+
         elif chart_type == "horizontal_bar":
             fig = px.bar(
                 plot_df,
                 x=metric_column,
-                y='name',
+                y=config.COL_NAME,
                 orientation='h',
                 title=f"Top {top_n} Buildings by {translated_name}",
-                labels={'name': 'Building Name', metric_column: translated_name}
+                labels={config.COL_NAME: 'Building Name', metric_column: translated_name}
             )
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-        
+
         elif chart_type == "pie":
             fig = px.pie(
                 plot_df,
                 values=metric_column,
-                names='name',
+                names=config.COL_NAME,
                 title=f"Top {top_n} Buildings by {translated_name}"
             )
         
@@ -232,8 +232,8 @@ class DataVisualizationManager:
     def create_comparison_chart(self, selected_buildings: List[str], metrics: List[str], show_per_square: bool = False) -> go.Figure:
         """Create a radar/spider chart for building comparison."""
         
-        comparison_df = self.df[self.df['name'].isin(selected_buildings)]
-        
+        comparison_df = self.df[self.df[config.COL_NAME].isin(selected_buildings)]
+
         if comparison_df.empty or len(metrics) < 3:
             fig = go.Figure()
             fig.add_annotation(text="Select buildings and at least 3 metrics for comparison", 
@@ -267,7 +267,7 @@ class DataVisualizationManager:
                 text=values,
                 theta=translated_metrics,
                 fill='toself',
-                name=building['name'],
+                name=building[config.COL_NAME],
                 line_color=colors[idx % len(colors)]
             ))
         
@@ -307,7 +307,7 @@ class DataVisualizationManager:
             )
         
         # Building selection for simulation
-        available_buildings = self.df[self.df['Nbr of squares (Avg)'] > 0]['name'].tolist()
+        available_buildings = self.df[self.df[config.COL_SIZE] > 0][config.COL_NAME].tolist()
         selected_buildings = st.multiselect(
             translations.get_text("select_buildings_for_simulation", self.lang_code),
             options=available_buildings,
@@ -322,27 +322,27 @@ class DataVisualizationManager:
         # Optimization criteria
         optimization_criteria = st.selectbox(
             translations.get_text("optimization_criteria", self.lang_code),
-            options=['Weighted Efficiency', 'Forge Points', 'Coins', 'Supplies'] + 
+            options=[config.COL_WEIGHTED_EFFICIENCY, 'Forge Points', 'Coins', 'Supplies'] +
                    [col for col in self.df.columns if 'Goods' in col and pd.api.types.is_numeric_dtype(self.df[col])],
             format_func=lambda x: self._translate_column(x)
         )
         
         if st.button(translations.get_text("run_simulation", self.lang_code)):
-            simulation_df = self.df[self.df['name'].isin(selected_buildings)].copy()
+            simulation_df = self.df[self.df[config.COL_NAME].isin(selected_buildings)].copy()
             
             if optimization_criteria not in simulation_df.columns:
                 st.error(translations.get_text("optimization_criteria_not_available", self.lang_code))
                 return
             
             # Simple greedy optimization algorithm
-            simulation_df = simulation_df.dropna(subset=[optimization_criteria, 'Nbr of squares (Avg)'])
+            simulation_df = simulation_df.dropna(subset=[optimization_criteria, config.COL_SIZE])
             
             if simulation_df.empty:
                 st.warning(translations.get_text("no_valid_buildings_for_simulation", self.lang_code))
                 return
             
             # Calculate efficiency per square
-            simulation_df['efficiency_per_square'] = simulation_df[optimization_criteria] / simulation_df['Nbr of squares (Avg)']
+            simulation_df['efficiency_per_square'] = simulation_df[optimization_criteria] / simulation_df[config.COL_SIZE]
             simulation_df = simulation_df.sort_values('efficiency_per_square', ascending=False)
             
             # Greedy selection
@@ -351,11 +351,11 @@ class DataVisualizationManager:
             total_production = 0
             
             for _, building in simulation_df.iterrows():
-                building_size = building['Nbr of squares (Avg)']
-                if (total_space_used + building_size <= available_space and 
+                building_size = building[config.COL_SIZE]
+                if (total_space_used + building_size <= available_space and
                     len(selected_for_placement) < max_buildings):
                     selected_for_placement.append({
-                        'name': building['name'],
+                        config.COL_NAME: building[config.COL_NAME],
                         'size': building_size,
                         'production': building[optimization_criteria],
                         'efficiency_per_square': building['efficiency_per_square']
@@ -401,7 +401,7 @@ class DataVisualizationManager:
             if len(selected_for_placement) > 0:
                 fig = px.treemap(
                     results_df,
-                    path=['name'],
+                    path=[config.COL_NAME],
                     values='size',
                     color='efficiency_per_square',
                     color_continuous_scale='RdYlGn',
@@ -417,8 +417,8 @@ class DataVisualizationManager:
             st.info(translations.get_text("select_buildings_and_metrics", self.lang_code))
             return
         
-        comparison_df = self.df[self.df['name'].isin(selected_buildings)]
-        
+        comparison_df = self.df[self.df[config.COL_NAME].isin(selected_buildings)]
+
         if comparison_df.empty:
             st.warning(translations.get_text("no_buildings_found", self.lang_code))
             return
@@ -442,7 +442,7 @@ class DataVisualizationManager:
             
             # Add values for each building
             for building_name in selected_buildings:
-                _rows = comparison_df[comparison_df['name'] == building_name]
+                _rows = comparison_df[comparison_df[config.COL_NAME] == building_name]
                 if _rows.empty:
                     continue
                 building_data = _rows.iloc[0]
@@ -586,7 +586,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
         st.subheader("⚖️ " + translations.get_text("building_comparison_analysis", lang_code))
         
         # Building selection (limited to 5)
-        available_buildings = df['name'].unique().tolist()
+        available_buildings = df[config.COL_NAME].unique().tolist()
         selected_buildings = st.multiselect(
             translations.get_text("select_buildings_to_compare", lang_code),
             options=available_buildings,
@@ -601,7 +601,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             # Get all stats that at least one of the selected buildings has (non-zero values)
             selected_building_data = []
             for building_name in selected_buildings:
-                _rows = df[df['name'] == building_name]
+                _rows = df[df[config.COL_NAME] == building_name]
                 if _rows.empty:
                     continue
                 building_data = _rows.iloc[0]
@@ -659,7 +659,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                     
                     for idx, building_name in enumerate(selected_buildings):
                         with summary_cols[idx]:
-                            _rows = df[df['name'] == building_name]
+                            _rows = df[df[config.COL_NAME] == building_name]
                             if _rows.empty:
                                 continue
                             building_idx = _rows.index[0]
@@ -715,7 +715,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                 
                 for idx, building_name in enumerate(selected_buildings):
                     with summary_cols[idx]:
-                        _rows = df[df['name'] == building_name]
+                        _rows = df[df[config.COL_NAME] == building_name]
                         if _rows.empty:
                             continue
                         building_idx = _rows.index[0]
