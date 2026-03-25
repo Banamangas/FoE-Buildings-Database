@@ -910,15 +910,32 @@ def main():
         logger.debug(f"Main Analysis: Weights active: {weights_active}, User weights: {user_weights}")
         
         if weights_active and not df_viz_filtered.empty:
-            logger.info("Applying efficiency calculations to main analysis table")
-            with st.spinner(translations.get_text("calculating_scores", lang_code)):
-                df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
-                    df=df_viz_filtered,
-                    user_weights=user_weights,
-                    user_context=user_context,
-                    user_boosts=user_boosts
-                )
-            logger.info("Main Analysis: Efficiency calculations completed successfully")
+            w_hash = _weights_state_hash(user_weights, user_context, user_boosts)
+            df_hash = hash(tuple(df_viz_filtered.index.tolist()))
+            cached = st.session_state.get(config.SessionKeys.EFFICIENCY_CACHE)
+
+            if (cached is not None
+                    and cached.get('w_hash') == w_hash
+                    and cached.get('df_hash') == df_hash):
+                df_viz_filtered[config.COL_TOTAL_SCORE] = cached['scores']
+                df_viz_filtered[config.COL_WEIGHTED_EFFICIENCY] = cached['efficiency']
+                logger.debug("Efficiency scores served from session cache")
+            else:
+                logger.info("Applying efficiency calculations to main analysis table")
+                with st.spinner(translations.get_text("calculating_scores", lang_code)):
+                    df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
+                        df=df_viz_filtered,
+                        user_weights=user_weights,
+                        user_context=user_context,
+                        user_boosts=user_boosts
+                    )
+                st.session_state[config.SessionKeys.EFFICIENCY_CACHE] = {
+                    'w_hash': w_hash,
+                    'df_hash': df_hash,
+                    'scores': df_viz_filtered[config.COL_TOTAL_SCORE].copy(),
+                    'efficiency': df_viz_filtered[config.COL_WEIGHTED_EFFICIENCY].copy(),
+                }
+                logger.info("Main Analysis: Efficiency calculations completed successfully")
         else:
             logger.info("Main Analysis: No active weights or empty dataframe - efficiency columns remain at 0.0")
 

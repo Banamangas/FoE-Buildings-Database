@@ -313,6 +313,7 @@ class SessionKeys:
     IMPORTED_INVENTORY = 'imported_inventory'
     IMPORTED_CITY = 'imported_city'
     SESSION_ID = 'session_id'
+    EFFICIENCY_CACHE = 'efficiency_cache'
 
 
 # Points awarded per unit of resource, used by city_analysis.py to rank owned buildings.
