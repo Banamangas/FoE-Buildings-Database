@@ -327,7 +327,7 @@ def log_unmatched_buildings(unmatched_ids: List[str]) -> None:
         # Create log entry
         log_entry = {
             "timestamp": datetime.now().isoformat(),
-            "session_id": st.session_state.get("session_id", "unknown"),
+            "session_id": st.session_state.get(config.SessionKeys.SESSION_ID, "unknown"),
             "unmatched_building_ids": unmatched_ids,
             "count": len(unmatched_ids),
             "source": "city_analysis"
@@ -538,8 +538,8 @@ def clear_all_data() -> int:
     try:
         # Clear session state data
         keys_to_clear = [
-            'imported_inventory',
-            'imported_city',
+            config.SessionKeys.IMPORTED_INVENTORY,
+            config.SessionKeys.IMPORTED_CITY,
             'city_analysis_inventory_data',
             'city_analysis_city_data',
             'city_analysis_merged_data'
@@ -576,20 +576,20 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
     st.markdown(translations.get_text("city_analysis_help", lang_code))
     
     # Initialize session state for imported data and session tracking
-    if 'session_id' not in st.session_state:
+    if config.SessionKeys.SESSION_ID not in st.session_state:
         import uuid
-        st.session_state.session_id = str(uuid.uuid4())[:8]  # Short session ID
-    
-    if 'imported_inventory' not in st.session_state:
-        st.session_state.imported_inventory = None
-    if 'imported_city' not in st.session_state:
-        st.session_state.imported_city = None
-    
+        st.session_state[config.SessionKeys.SESSION_ID] = str(uuid.uuid4())[:8]  # Short session ID
+
+    if config.SessionKeys.IMPORTED_INVENTORY not in st.session_state:
+        st.session_state[config.SessionKeys.IMPORTED_INVENTORY] = None
+    if config.SessionKeys.IMPORTED_CITY not in st.session_state:
+        st.session_state[config.SessionKeys.IMPORTED_CITY] = None
+
     # Load persisted data on startup
-    if st.session_state.imported_inventory is None:
-        st.session_state.imported_inventory = load_from_session_state("inventory_data")
-    if st.session_state.imported_city is None:
-        st.session_state.imported_city = load_from_session_state("city_data")
+    if st.session_state[config.SessionKeys.IMPORTED_INVENTORY] is None:
+        st.session_state[config.SessionKeys.IMPORTED_INVENTORY] = load_from_session_state("inventory_data")
+    if st.session_state[config.SessionKeys.IMPORTED_CITY] is None:
+        st.session_state[config.SessionKeys.IMPORTED_CITY] = load_from_session_state("city_data")
     
     # Import section
     st.subheader("📥 " + translations.get_text("import_data", lang_code))
@@ -618,7 +618,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 valid_inventory, unmatched_ids = validate_building_data(parsed_inventory, df_original)
                 
                 if valid_inventory:
-                    st.session_state.imported_inventory = valid_inventory
+                    st.session_state[config.SessionKeys.IMPORTED_INVENTORY] = valid_inventory
                     # Save to persistence
                     save_to_session_state(valid_inventory, "inventory_data")
                     
@@ -662,7 +662,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 valid_city, unmatched_ids = validate_building_data(parsed_city, df_original)
                 
                 if valid_city:
-                    st.session_state.imported_city = parsed_city
+                    st.session_state[config.SessionKeys.IMPORTED_CITY] = parsed_city
                     # Save to persistence
                     save_to_session_state(parsed_city, "city_data")
                     
@@ -689,8 +689,8 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
         
         if st.button(translations.get_text("clear_all", lang_code), type="secondary", key="clear_all_data"):
             # Clear session state
-            st.session_state.imported_inventory = None
-            st.session_state.imported_city = None
+            st.session_state[config.SessionKeys.IMPORTED_INVENTORY] = None
+            st.session_state[config.SessionKeys.IMPORTED_CITY] = None
             
             # Clear persistence
             cleared_count = clear_all_data()
@@ -700,15 +700,15 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             st.rerun()
     
     # Display imported data if available
-    if st.session_state.imported_inventory or st.session_state.imported_city:
+    if st.session_state[config.SessionKeys.IMPORTED_INVENTORY] or st.session_state[config.SessionKeys.IMPORTED_CITY]:
         st.markdown("---")
         st.subheader("📊 " + translations.get_text("imported_data_analysis", lang_code))
         
         # Combine all imported data using era-specific keys
         all_building_data = {}
         
-        if st.session_state.imported_inventory:
-            for unique_key, data in st.session_state.imported_inventory.items():
+        if st.session_state[config.SessionKeys.IMPORTED_INVENTORY]:
+            for unique_key, data in st.session_state[config.SessionKeys.IMPORTED_INVENTORY].items():
                 quantity = data.get('quantity', data) if isinstance(data, dict) else data
                 all_building_data[unique_key] = {
                     'inventory_quantity': quantity,
@@ -717,8 +717,8 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                     'era_level': data.get('era_level') if isinstance(data, dict) else None
                 }
         
-        if st.session_state.imported_city:
-            for unique_key, data in st.session_state.imported_city.items():
+        if st.session_state[config.SessionKeys.IMPORTED_CITY]:
+            for unique_key, data in st.session_state[config.SessionKeys.IMPORTED_CITY].items():
                 if unique_key not in all_building_data:
                     all_building_data[unique_key] = {
                         'inventory_quantity': 0,

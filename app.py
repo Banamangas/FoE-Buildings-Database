@@ -93,20 +93,20 @@ def main():
 
     # --- Language Selection with Session State ---
     # Initialize language in session state if not exists
-    if 'language' not in st.session_state:
-        st.session_state.language = 'English'
-    
+    if config.SessionKeys.LANGUAGE not in st.session_state:
+        st.session_state[config.SessionKeys.LANGUAGE] = 'English'
+
     # Language selector with session state
     selected_language = st.sidebar.selectbox(
         "Select Language / Choisir la langue",
         options=list(translations.LANGUAGES.keys()),
-        index=list(translations.LANGUAGES.keys()).index(st.session_state.language),
+        index=list(translations.LANGUAGES.keys()).index(st.session_state[config.SessionKeys.LANGUAGE]),
         key="language_selector"
     )
-    
+
     # Update session state if language changed
-    if selected_language != st.session_state.language:
-        st.session_state.language = selected_language
+    if selected_language != st.session_state[config.SessionKeys.LANGUAGE]:
+        st.session_state[config.SessionKeys.LANGUAGE] = selected_language
         # Force rerun to update translations
         st.rerun()
     
@@ -302,17 +302,17 @@ def main():
 
     # --- Initialize Weights ---
     # Initialize weights dictionary before tabs and preserve in session state
-    if 'user_weights' not in st.session_state:
-        st.session_state.user_weights = {}
-    if 'user_context' not in st.session_state:
-        st.session_state.user_context = {}
-    if 'user_boosts' not in st.session_state:
-        st.session_state.user_boosts = {}
-    
+    if config.SessionKeys.USER_WEIGHTS not in st.session_state:
+        st.session_state[config.SessionKeys.USER_WEIGHTS] = {}
+    if config.SessionKeys.USER_CONTEXT not in st.session_state:
+        st.session_state[config.SessionKeys.USER_CONTEXT] = {}
+    if config.SessionKeys.USER_BOOSTS not in st.session_state:
+        st.session_state[config.SessionKeys.USER_BOOSTS] = {}
+
     # Load current values from session state
-    user_weights = st.session_state.user_weights.copy()
-    user_context = st.session_state.user_context.copy()
-    user_boosts = st.session_state.user_boosts.copy()
+    user_weights = st.session_state[config.SessionKeys.USER_WEIGHTS].copy()
+    user_context = st.session_state[config.SessionKeys.USER_CONTEXT].copy()
+    user_boosts = st.session_state[config.SessionKeys.USER_BOOSTS].copy()
 
     # ================== Main Content Area ==================
     # CSS for tab-like radio buttons with session state persistence
@@ -394,9 +394,9 @@ def main():
     """, unsafe_allow_html=True)
     
     # Initialize active tab in session state
-    if 'active_main_tab' not in st.session_state:
-        st.session_state.active_main_tab = 0
-    
+    if config.SessionKeys.ACTIVE_MAIN_TAB not in st.session_state:
+        st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] = 0
+
     # Tab selector with session state persistence
     tab_names = [
         translations.get_text("building_details", lang_code),
@@ -404,24 +404,24 @@ def main():
         translations.get_text("city_analysis", lang_code),
         translations.get_text("visualizations", lang_code)
     ]
-    
+
     selected_tab = st.radio(
         label="Navigation",
         options=range(len(tab_names)),
         format_func=lambda x: tab_names[x],
-        index=st.session_state.active_main_tab,
+        index=st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB],
         key="main_tab_selector",
         horizontal=True,
         label_visibility="collapsed"
     )
-    
+
     # Update session state when tab changes
-    if selected_tab != st.session_state.active_main_tab:
-        st.session_state.active_main_tab = selected_tab
+    if selected_tab != st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB]:
+        st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] = selected_tab
         st.rerun()
-    
+
     # --- Building Details Tab (First Tab) ---
-    if st.session_state.active_main_tab == 0:
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 0:
         
         st.header(translations.get_text("building_stats", lang_code))
         
@@ -435,14 +435,14 @@ def main():
             st.info(f"📍 {translations.translate_column('Era', lang_code)}: **{selected_translated_era}**", width=300)
 
             # Building selection dropdown (only buildings from selected era)
-            if 'selection_building' not in st.session_state:
-                st.session_state['selection_building'] = 0
+            if config.SessionKeys.SELECTION_BUILDING not in st.session_state:
+                st.session_state[config.SessionKeys.SELECTION_BUILDING] = 0
 
             building_names = sorted(df_era_filtered[config.COL_NAME].unique())
             selected_building = st.selectbox(
                 label=translations.get_text("select_building", lang_code),
                 options=[""] + building_names,
-                index=st.session_state['selection_building'],
+                index=st.session_state[config.SessionKeys.SELECTION_BUILDING],
                 key="building_selector"
             )
 
@@ -631,12 +631,12 @@ def main():
     df_viz_filtered[config.COL_TOTAL_SCORE] = 0.0 # Initialize
     
     # --- Building Analysis Tab (Second Tab) ---
-    if st.session_state.active_main_tab == 1:
-        
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 1:
+
         # Initialize active subtab in session state
-        if 'active_analysis_subtab' not in st.session_state:
-            st.session_state.active_analysis_subtab = 0
-        
+        if config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB not in st.session_state:
+            st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] = 0
+
         # Subtab selector with session state persistence
         subtab_names = [
             translations.get_text("building_table", lang_code),
@@ -645,24 +645,24 @@ def main():
             translations.get_text("qi_boosts_analysis", lang_code)
             # translations.get_text("qi_optimizer", lang_code)
         ]
-        
+
         selected_subtab = st.radio(
             label="Analysis Navigation",
             options=range(len(subtab_names)),
             format_func=lambda x: subtab_names[x],
-            index=st.session_state.active_analysis_subtab,
+            index=st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB],
             key="analysis_subtab_selector",
             horizontal=True,
             label_visibility="collapsed"
         )
-        
+
         # Update session state when subtab changes
-        if selected_subtab != st.session_state.active_analysis_subtab:
-            st.session_state.active_analysis_subtab = selected_subtab
+        if selected_subtab != st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB]:
+            st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] = selected_subtab
             st.rerun()
 
         # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
-        if st.session_state.active_analysis_subtab == 1:
+        if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 1:
             # --- Weighting Inputs ---
             st.header(translations.get_text("efficiency_weights", lang_code))
             st.markdown(translations.get_text("efficiency_help_direct", lang_code))
@@ -708,7 +708,7 @@ def main():
                                         key=f"weight_{col_name}"
                                     )
                                     user_weights[col_name] = weight_value
-                                    st.session_state.user_weights[col_name] = weight_value
+                                    st.session_state[config.SessionKeys.USER_WEIGHTS][col_name] = weight_value
             st.markdown("---")
             # --- User Context Section ---
             st.header(translations.get_text("user_context", lang_code))
@@ -735,7 +735,7 @@ def main():
                             key=f"context_{field_key}"
                         )
                         user_context[field_key] = context_value
-                        st.session_state.user_context[field_key] = context_value
+                        st.session_state[config.SessionKeys.USER_CONTEXT][field_key] = context_value
             
             # Current Boosts Section
             st.subheader(translations.get_text("current_boosts_section", lang_code))
@@ -760,7 +760,7 @@ def main():
                             key=f"boost_{field_key}"
                         )
                         user_boosts[field_key] = boost_value
-                        st.session_state.user_boosts[field_key] = boost_value
+                        st.session_state[config.SessionKeys.USER_BOOSTS][field_key] = boost_value
 
         # Calculate efficiency if weights are set (after processing weights subtab)
         weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
@@ -779,7 +779,7 @@ def main():
             logger.info("Main Analysis: No active weights or empty dataframe - efficiency columns remain at 0.0")
 
         # --- Table Subtab ---
-        if st.session_state.active_analysis_subtab == 0:
+        if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 0:
             try:
                 # --- Prepare Display Columns ---
                 # Filter columns that exist in the filtered dataframe
@@ -909,8 +909,8 @@ def main():
                 builingRows=grid_return.selected_rows                               # Get selected row
                 if builingRows is not None:                                         # if a row is selected
                     buildingIndex=int(builingRows.index[0])+1                       # Get selected row's Index
-                    if buildingIndex!=st.session_state['selection_building']:       # if changed
-                        st.session_state['selection_building']  =  buildingIndex    # set to new value
+                    if buildingIndex!=st.session_state[config.SessionKeys.SELECTION_BUILDING]:       # if changed
+                        st.session_state[config.SessionKeys.SELECTION_BUILDING]  =  buildingIndex    # set to new value
                         st.rerun()
 
                 # --- Display Disclaimer ---
@@ -957,7 +957,7 @@ def main():
                 logger.error(f"Error during main app execution: {e}", exc_info=True)
         
         # --- Consumables Analysis Subtab ---
-        if st.session_state.active_analysis_subtab == 2:
+        if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 2:
             st.header("🛠️ " + translations.get_text("consumables_analysis", lang_code))
             st.markdown(translations.get_text("consumables_analysis_help", lang_code))
             
@@ -1150,7 +1150,7 @@ def main():
                     st.info(translations.get_text("select_consumables_to_analyze", lang_code))
         
         # --- QI Boosts Analysis Subtab ---
-        if st.session_state.active_analysis_subtab == 3:
+        if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 3:
             st.header("🌌 " + translations.get_text("qi_boosts_analysis", lang_code))
             st.markdown(translations.get_text("qi_boosts_analysis_help", lang_code))
             
@@ -1350,7 +1350,7 @@ def main():
             # qi_optimizer_test.render_qi_optimizer(df_viz_filtered, lang_code, cached_image_manager)
     
     # --- City Analysis Tab ---
-    if st.session_state.active_main_tab == 2:
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 2:
         
         # Render the City Analysis interface
         city_analysis.render_city_analysis_tab(
@@ -1363,7 +1363,7 @@ def main():
         )
     
     # --- Visualizations Tab ---
-    if st.session_state.active_main_tab == 3:
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 3:
         
         # Use the same filtered data from the analysis tab
         # Apply "Per Square" Calculation to visualization data if enabled
