@@ -6,6 +6,7 @@
     "search_label": "Rechercher par nom",
     "search_help": "Sélectionnez un ou plusieurs bâtiments dans le filtre dynamique. Tapez pour rechercher et filtrer les options.",
     "display_icons": "Afficher les icônes dans les en-têtes",
+    "display_icons_help": "Affiche les icônes dans les en-têtes de colonnes. Activez pour accéder à l'option 'Afficher les étiquettes'.",
     "show_labels": "Afficher les labels avec les icônes",
     "column_selection": "Sélection des colonnes",
     "select_groups": "Sélectionnez les groupes de colonnes à afficher",

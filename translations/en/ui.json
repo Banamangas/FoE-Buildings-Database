@@ -6,6 +6,7 @@
     "search_label": "Search by name",
     "search_help": "Select one or more buildings from the dynamic filter. Type to search and filter options.",
     "display_icons": "Display icons",
+    "display_icons_help": "Show icons in column headers. Enable to also access the 'Show labels' option.",
     "show_labels": "Show labels with icons",
     "column_selection": "Column Selection",
     "select_groups": "Select information groups to display",

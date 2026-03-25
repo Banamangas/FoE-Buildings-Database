@@ -447,7 +447,7 @@ def main():
     # --- UI Options ---
     if advanced_mode:
         # Full options in advanced mode
-        use_icons = st.sidebar.checkbox(translations.get_text("display_icons", lang_code), value=True, key="display_icons_checkbox")
+        use_icons = st.sidebar.checkbox(translations.get_text("display_icons", lang_code), value=True, key="display_icons_checkbox", help=translations.get_text("display_icons_help", lang_code))
         show_labels = st.sidebar.checkbox(translations.get_text("show_labels", lang_code), value=False, key="show_labels_checkbox") if use_icons else False
         show_per_square = st.sidebar.checkbox("📐 " + translations.get_text("value_per_tile", lang_code), value=False, key="per_square_checkbox")
         enable_heatmap = st.sidebar.checkbox(translations.get_text("enable_heatmap", lang_code), value=True, key="heatmap_checkbox")
