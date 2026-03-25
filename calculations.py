@@ -242,7 +242,12 @@ def _apply_context_boosts(enhanced_row: pd.Series, building_row: pd.Series, true
     return enhanced_row
 
 
-def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str, float], user_boosts: Dict[str, float]) -> pd.Series:
+def apply_boosts_to_base_metrics(
+    building_row: pd.Series,
+    user_context: Dict[str, float],
+    user_boosts: Dict[str, float],
+    true_base_context: Optional[Dict[str, float]] = None,
+) -> pd.Series:
     """Apply city boosts and building self-boosts to the building's base production values.
 
     Three-step pipeline (see CLAUDE.md § Boost Algorithm for rationale):
@@ -256,6 +261,10 @@ def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str
         building_row: Single row from the building DataFrame.
         user_context: Daily production figures entered by the user (e.g. fp_daily_production).
         user_boosts: Current city boost percentages (e.g. current_fp_boost).
+        true_base_context: Pre-computed result of _compute_true_base_context(user_context,
+            user_boosts). Pass this when calling in a loop to avoid recomputing it for
+            every row — it only depends on user inputs, not on the building. If None,
+            it is computed here (correct but wasteful in a loop).
 
     Returns:
         A copy of building_row with production columns adjusted to reflect all boosts.
@@ -279,9 +288,10 @@ def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str
     # Apply combined boosts to original base values
     enhanced_row = _apply_production_boosts(enhanced_row, original_base_values, combined_boosts)
 
-    # STEP 2: Calculate true base production values from user's current boosted production
-    # This is for boost buildings that provide percentage boosts to user context
-    true_base_context = _compute_true_base_context(user_context, user_boosts)
+    # STEP 2: True base production — reverse-engineer from user's boosted daily output.
+    # This is the same for every building; callers in a loop should pass it pre-computed.
+    if true_base_context is None:
+        true_base_context = _compute_true_base_context(user_context, user_boosts)
 
     # STEP 3: Apply building boosts to user context (for boost buildings)
     # This handles boost buildings (buildings that provide percentage boosts to the user's daily production)
@@ -312,9 +322,13 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
         return df
     
     try:
+        # Pre-compute once: true_base_context only depends on user inputs, not on any building row.
+        true_base_context = _compute_true_base_context(user_context, user_boosts)
+
         for idx, building_row in df.iterrows():
-            # Apply boosts to base metrics first
-            enhanced_row = apply_boosts_to_base_metrics(building_row, user_context, user_boosts)
+            # Apply boosts to base metrics first (pass pre-computed true_base_context to avoid
+            # recomputing it for every building — it is the same for all rows in this call).
+            enhanced_row = apply_boosts_to_base_metrics(building_row, user_context, user_boosts, true_base_context)
             
             total_score = 0.0
             
