@@ -192,7 +192,7 @@ class AdvancedFilterManager:
         )
         
         selected_values = st.multiselect(
-            f"Filter {translated_name}",
+            translations.get_text('filter_column_label', self.lang_code).format(name=translated_name),
             options=unique_values,
             default=current_values,
             placeholder=translations.get_text("choose_an_option", self.lang_code),

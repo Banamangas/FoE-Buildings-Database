@@ -203,10 +203,10 @@ class DataVisualizationManager:
                 x='name',
                 y=metric_column,
                 title=f"Top {top_n} Buildings by {translated_name}",
-                labels={'name': 'Building Name', metric_column: translated_name}
+                labels={'name': translations.get_text('building_name', self.lang_code), metric_column: translated_name}
             )
             fig.update_xaxes(tickangle=45)
-        
+
         elif chart_type == "horizontal_bar":
             fig = px.bar(
                 plot_df,
@@ -214,7 +214,7 @@ class DataVisualizationManager:
                 y='name',
                 orientation='h',
                 title=f"Top {top_n} Buildings by {translated_name}",
-                labels={'name': 'Building Name', metric_column: translated_name}
+                labels={'name': translations.get_text('building_name', self.lang_code), metric_column: translated_name}
             )
             fig.update_layout(yaxis={'categoryorder': 'total ascending'})
         

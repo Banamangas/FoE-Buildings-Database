@@ -1036,14 +1036,8 @@ def main():
                                     translated_consumable = translations.translate_column(consumable, lang_code)
                                     # Store the raw numeric value for sorting
                                     row_data[translated_consumable] = production_value
-                                else:
-                                    # Don't include buildings that don't produce this consumable
-                                    continue
-                            
-                            # Only add row if it produces at least one selected consumable
-                            has_production = any(building.get(cons, 0) > 0 for cons in selected_consumables)
-                            if has_production:
-                                display_data.append(row_data)
+
+                            display_data.append(row_data)
                         
                         if display_data:
                             # Create DataFrame for display (values are already numeric for proper sorting)
@@ -1235,14 +1229,8 @@ def main():
                                     # Store numeric value - formatting will be handled by column_config
                                     translated_qi_boost = translations.translate_column(qi_boost, lang_code)
                                     row_data[translated_qi_boost] = boost_value
-                                else:
-                                    # Don't include buildings that don't provide this QI boost
-                                    continue
-                            
-                            # Only add row if it provides at least one selected QI boost
-                            has_qi_boost = any(building.get(boost, 0) > 0 for boost in selected_qi_boosts)
-                            if has_qi_boost:
-                                display_data.append(row_data)
+
+                            display_data.append(row_data)
                         
                         if display_data:
                             # Create DataFrame for display (values are already numeric for proper sorting)

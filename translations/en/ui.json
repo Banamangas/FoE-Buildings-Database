@@ -135,6 +135,7 @@
     "select_numeric_column": "Select numeric column to filter",
     "select_categorical_column": "Select categorical column to filter",
     "select_column": "Select a column...",
+    "filter_column_label": "Filter {name}",
     "add_filter": "Add Filter",
     "remove_filter": "Remove Filter",
     "no_numeric_columns": "No numeric columns available for filtering",

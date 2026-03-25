@@ -68,12 +68,11 @@ class BuildingImageManager:
         except ValueError:
             return False
 
-    def get_all_mappings(self) -> Dict[str, str]:
-        """Return all asset_id -> image URL mappings."""
+    def get_all_path_urls(self) -> Dict[str, str]:
+        """Return all path -> image URL mappings."""
         self._ensure_loaded()
         result = {}
         for key, h in self._forgehx.items():
-            # Reverse the key back to an asset_id is non-trivial; return URL map keyed by path
             result[key] = f"{FORGEHX_IMAGE_BASE}{key[:-4]}-{h}.png"
         return result
 

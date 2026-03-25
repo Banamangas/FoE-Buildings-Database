@@ -470,8 +470,8 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
 
 
 def save_to_session_state(data: Dict[str, Any], key: str) -> None:
-    """Save data to browser localStorage via session state (Streamlit-compatible persistence).
-    
+    """Save data to Streamlit session state.
+
     Args:
         data: Data to save
         key: Storage key
@@ -487,11 +487,11 @@ def save_to_session_state(data: Dict[str, Any], key: str) -> None:
 
 
 def load_from_session_state(key: str) -> Optional[Dict[str, Any]]:
-    """Load data from browser localStorage via session state (Streamlit-compatible persistence).
-    
+    """Load data from Streamlit session state.
+
     Args:
         key: Storage key
-        
+
     Returns:
         Loaded data or None if not found
     """
@@ -508,38 +508,32 @@ def load_from_session_state(key: str) -> Optional[Dict[str, Any]]:
 
 def show_toast_notification(message: str, notification_type: str = "success") -> None:
     """Show a toast notification to the user.
-    
+
     Args:
         message: Message to display
         notification_type: Type of notification ("success", "error", "warning", "info")
     """
-    try:
-        # Map notification types to Streamlit methods and icons
-        notification_map = {
-            "success": (st.success, "✅"),
-            "error": (st.error, "❌"),
-            "warning": (st.warning, "⚠️"),
-            "info": (st.info, "ℹ️")
-        }
-        
-        if notification_type in notification_map:
-            method, icon = notification_map[notification_type]
-            method(f"{icon} {message}")
-        else:
-            st.info(f"ℹ️ {message}")
-            
-        logger.info(f"Toast notification ({notification_type}): {message}")
-    except Exception as e:
-        logger.error(f"Failed to show toast notification: {e}")
-        # Fallback to simple text display
-        st.write(f"{notification_type.upper()}: {message}")
+    notification_map = {
+        "success": (st.success, "✅"),
+        "error": (st.error, "❌"),
+        "warning": (st.warning, "⚠️"),
+        "info": (st.info, "ℹ️")
+    }
+
+    if notification_type in notification_map:
+        method, icon = notification_map[notification_type]
+        method(f"{icon} {message}")
+    else:
+        st.info(f"ℹ️ {message}")
+
+    logger.info(f"Toast notification ({notification_type}): {message}")
 
 
-def clear_all_data() -> None:
+def clear_all_data() -> int:
     """Clear all imported city analysis data from session state.
-    
+
     Returns:
-        None
+        Number of session state keys cleared
     """
     try:
         # Clear session state data
