@@ -74,8 +74,8 @@
     "finish_goods_production": "Terminer une Production de Ressources",
     "finish_all_supplies": "Terminer toutes les productions de Marchandises",
     "Other productions": "Autres productions",
-  "Quantity": "Quantité",
-  "Source": "Source",
+    "Quantity": "Quantité",
+    "Source": "Source",
     "Translated Era": "Ère",
     "Weighted Efficiency": "Efficacité Pondérée",
     "Total Score": "Score total pondéré"

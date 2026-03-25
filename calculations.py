@@ -4,14 +4,14 @@ import pandas as pd
 import streamlit as st
 
 # Import configurations and logger
-from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, USER_BOOST_FIELDS, logger
+from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, USER_BOOST_FIELDS, logger, COL_ERA, COL_SIZE, COL_TOTAL_SCORE, COL_WEIGHTED_EFFICIENCY
 
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py
 def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
     """Calculates min and max stats per era for weightable columns."""
     logger.info("Calculating min/max statistics per era...")
-    if df.empty or 'Era' not in df.columns:
+    if df.empty or COL_ERA not in df.columns:
         logger.warning("Cannot calculate era stats: DataFrame is empty or missing 'Era' column.")
         return pd.DataFrame() # Return empty DataFrame if no data
 
@@ -23,7 +23,7 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # Use standard min and max aggregation
-        stats = df.groupby('Era', observed=False)[cols_to_agg].agg(['min', 'max'])
+        stats = df.groupby(COL_ERA, observed=False)[cols_to_agg].agg(['min', 'max'])
 
         logger.info("Era statistics (min/max) calculation complete.")
         return stats
@@ -202,8 +202,8 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
         user_boosts = {}
     
     # Initialize columns
-    df['Total Score'] = 0.0
-    df['Weighted Efficiency'] = 0.0
+    df[COL_TOTAL_SCORE] = 0.0
+    df[COL_WEIGHTED_EFFICIENCY] = 0.0
     
     # Check if any weights are set
     any_weight_set = any(w > 0 for w in user_weights.values())
@@ -228,22 +228,22 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
                         logger.debug(f"Building {idx}, {metric}: {enhanced_row[metric]:.1f} * {weight} = {contribution:.1f}")
             
             # Set total score
-            df.at[idx, 'Total Score'] = round(total_score, 1)
-            
+            df.at[idx, COL_TOTAL_SCORE] = round(total_score, 1)
+
             # Calculate efficiency (score per tile)
-            building_size = building_row.get('Nbr of squares (Avg)', 1)
+            building_size = building_row.get(COL_SIZE, 1)
             if building_size > 0:
                 efficiency = total_score / building_size
-                df.at[idx, 'Weighted Efficiency'] = round(efficiency, 1)
+                df.at[idx, COL_WEIGHTED_EFFICIENCY] = round(efficiency, 1)
             else:
-                df.at[idx, 'Weighted Efficiency'] = 0.0
-        
+                df.at[idx, COL_WEIGHTED_EFFICIENCY] = 0.0
+
         logger.info("Direct weighted efficiency calculation complete")
-        
+
     except Exception as e:
         logger.error(f"Error in direct weighted efficiency calculation: {e}", exc_info=True)
-        df['Total Score'] = 0.0
-        df['Weighted Efficiency'] = 0.0
+        df[COL_TOTAL_SCORE] = 0.0
+        df[COL_WEIGHTED_EFFICIENCY] = 0.0
     
     return df
 

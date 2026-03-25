@@ -30,43 +30,43 @@ def apply_translations(df: pd.DataFrame, language_code: str) -> pd.DataFrame:
     """Translate building names, events, eras, and yes/no values in-place (cached)."""
     df_translated = df.copy()
 
-    if 'name' in df_translated.columns:
-        df_translated['name'] = df_translated['name'].map(
+    if config.COL_NAME in df_translated.columns:
+        df_translated[config.COL_NAME] = df_translated[config.COL_NAME].map(
             lambda name: translations.translate_building_name(name, language_code)
         )
     else:
         logger.error("'name' column missing after data load.")
 
-    if 'Event' in df_translated.columns:
-        df_translated['Event'] = df_translated['Event'].map(
+    if config.COL_EVENT in df_translated.columns:
+        df_translated[config.COL_EVENT] = df_translated[config.COL_EVENT].map(
             lambda key: translations.translate_event_key(key, language_code)
         )
     else:
         logger.error("'Event' column missing after data load.")
 
-    if 'Era' in df_translated.columns:
-        df_translated['Translated Era'] = df_translated['Era'].map(
+    if config.COL_ERA in df_translated.columns:
+        df_translated[config.COL_TRANSLATED_ERA] = df_translated[config.COL_ERA].map(
             lambda key: translations.translate_era_key(key, language_code)
         )
     else:
         logger.error("'Era' column not found after data load. Cannot translate eras.")
-        df_translated['Translated Era'] = "Error"
+        df_translated[config.COL_TRANSLATED_ERA] = "Error"
 
-    if 'Limited' in df_translated.columns:
-        df_translated['Limited'] = df_translated['Limited'].map(
+    if config.COL_LIMITED in df_translated.columns:
+        df_translated[config.COL_LIMITED] = df_translated[config.COL_LIMITED].map(
             lambda key: translations.translate_yesno_key(key, language_code)
         )
     else:
         logger.error("'Limited' column not found after data load. Cannot translate Limited.")
-        df_translated['Limited'] = "Error"
+        df_translated[config.COL_LIMITED] = "Error"
 
-    if 'Ally room' in df_translated.columns:
-        df_translated['Ally room'] = df_translated['Ally room'].map(
+    if config.COL_ALLY_ROOM in df_translated.columns:
+        df_translated[config.COL_ALLY_ROOM] = df_translated[config.COL_ALLY_ROOM].map(
             lambda key: translations.translate_yesno_key(key, language_code)
         )
     else:
         logger.error("'Ally room' column not found after data load. Cannot translate Ally room.")
-        df_translated['Ally room'] = "Error"
+        df_translated[config.COL_ALLY_ROOM] = "Error"
 
     return df_translated
 
@@ -185,7 +185,7 @@ def main():
 
     # --- Era Filter ---
     # Get unique raw era keys and sort them according to ERAS_DICT order
-    unique_raw_eras = df_original['Era'].unique()
+    unique_raw_eras = df_original[config.COL_ERA].unique()
     # Create a list of eras in ERAS_DICT order that exist in our data
     ordered_raw_eras = [era_key for era_key in config.ERAS_DICT.keys() if era_key in unique_raw_eras]
     # Add any eras that exist in data but not in ERAS_DICT (fallback)
@@ -210,7 +210,7 @@ def main():
     )
 
     # --- Event Filter ---
-    available_events = sorted(df_original['Event'].unique())
+    available_events = sorted(df_original[config.COL_EVENT].unique())
     selected_events = st.sidebar.multiselect(
         label=translations.translate_column("Event", lang_code),
         options=available_events,
@@ -220,13 +220,13 @@ def main():
 
     # --- Dynamic Name Filter ---
     # Create a subset dataframe filtered by era and event for the name filter
-    df_for_name_filter = df_original[df_original['Translated Era'] == selected_translated_era].copy()
+    df_for_name_filter = df_original[df_original[config.COL_TRANSLATED_ERA] == selected_translated_era].copy()
     if selected_events:
-        df_for_name_filter = df_for_name_filter[df_for_name_filter['Event'].isin(selected_events)]
-    
+        df_for_name_filter = df_for_name_filter[df_for_name_filter[config.COL_EVENT].isin(selected_events)]
+
     # Initialize dynamic filters for building names only
     with st.sidebar:
-        available_name_filters = sorted(df_for_name_filter['name'].unique())
+        available_name_filters = sorted(df_for_name_filter[config.COL_NAME].unique())
         name_filter = st.multiselect(
                 label=translations.get_text("search_label", lang_code),
                 options=available_name_filters,
@@ -426,7 +426,7 @@ def main():
         st.header(translations.get_text("building_stats", lang_code))
         
         # Filter buildings by selected era (same as Home tab)
-        df_era_filtered = df_original[df_original['Translated Era'] == selected_translated_era].copy()
+        df_era_filtered = df_original[df_original[config.COL_TRANSLATED_ERA] == selected_translated_era].copy()
 
         # Create columns for layout
         col1, col2, col3 = st.columns([1,1,2])
@@ -438,7 +438,7 @@ def main():
             if 'selection_building' not in st.session_state:
                 st.session_state['selection_building'] = 0
 
-            building_names = sorted(df_era_filtered['name'].unique())
+            building_names = sorted(df_era_filtered[config.COL_NAME].unique())
             selected_building = st.selectbox(
                 label=translations.get_text("select_building", lang_code),
                 options=[""] + building_names,
@@ -452,14 +452,14 @@ def main():
         if combine_army_stats:
             df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
         
-        _building_match = df_era_filtered[df_era_filtered['name'] == selected_building] if selected_building else pd.DataFrame()
+        _building_match = df_era_filtered[df_era_filtered[config.COL_NAME] == selected_building] if selected_building else pd.DataFrame()
         if selected_building and selected_building != "" and not _building_match.empty:
             # Get the selected building data from the era-filtered dataframe
             building_data = _building_match.iloc[0].copy()
             
             # Apply per square calculation if enabled
-            if show_per_square and 'Nbr of squares (Avg)' in building_data and building_data['Nbr of squares (Avg)'] > 0:
-                building_size = building_data['Nbr of squares (Avg)']
+            if show_per_square and config.COL_SIZE in building_data and building_data[config.COL_SIZE] > 0:
+                building_size = building_data[config.COL_SIZE]
                 # Apply per square calculation to numeric columns
                 for col in building_data.index:
                     if (col not in config.PER_SQUARE_EXCLUDED_COLUMNS and 
@@ -522,7 +522,7 @@ def main():
                         })
             
             # Create layout with stats table on left and image on right
-            building_asset_id = building_data.get('asset_id')
+            building_asset_id = building_data.get(config.COL_ASSET_ID)
             if building_asset_id and cached_image_manager.has_image(building_asset_id):
                 # Layout with table on left and image on right
                 table_col, img_col = st.columns([2, 4])
@@ -599,11 +599,11 @@ def main():
     
     # Prepare filtered data for Analysis and Visualizations tabs (shared data)
     # Apply the same filtering as the previous Home tab for consistency
-    df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
+    df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced[config.COL_TRANSLATED_ERA] == selected_translated_era].copy()
     if selected_events:
-        df_viz_filtered = df_viz_filtered[df_viz_filtered['Event'].isin(selected_events)]
+        df_viz_filtered = df_viz_filtered[df_viz_filtered[config.COL_EVENT].isin(selected_events)]
     if name_filter:
-        df_viz_filtered = df_viz_filtered[df_viz_filtered['name'].isin(name_filter)]
+        df_viz_filtered = df_viz_filtered[df_viz_filtered[config.COL_NAME].isin(name_filter)]
     
     # Apply army stats combination if enabled
     if combine_army_stats:
@@ -627,8 +627,8 @@ def main():
             buildings_filtered_by_zero_production = n_before - len(df_viz_filtered)
     
     # Initialize efficiency columns if they don't exist
-    df_viz_filtered['Weighted Efficiency'] = 0.0 # Initialize
-    df_viz_filtered['Total Score'] = 0.0 # Initialize
+    df_viz_filtered[config.COL_WEIGHTED_EFFICIENCY] = 0.0 # Initialize
+    df_viz_filtered[config.COL_TOTAL_SCORE] = 0.0 # Initialize
     
     # --- Building Analysis Tab (Second Tab) ---
     if st.session_state.active_main_tab == 1:
@@ -800,18 +800,18 @@ def main():
                     st.stop()
                     
                 df_display = df_viz_filtered[existing_columns_for_display].copy()
-                df_display=df_display.sort_values(by='name',ascending=True)
+                df_display=df_display.sort_values(by=config.COL_NAME,ascending=True)
 
 
                 # --- Apply "Per Square" Calculation ---
-                if show_per_square and 'Nbr of squares (Avg)' in df_viz_filtered.columns:
+                if show_per_square and config.COL_SIZE in df_viz_filtered.columns:
                     numeric_cols = [
                         col for col in df_display.columns
                         if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
                         and pd.api.types.is_numeric_dtype(df_display[col])
                     ]
                     # Reindex to df_display's order; fill_value=1 avoids KeyError if indices diverge
-                    divisor_col = df_viz_filtered['Nbr of squares (Avg)'].reindex(df_display.index, fill_value=1).astype(float)
+                    divisor_col = df_viz_filtered[config.COL_SIZE].reindex(df_display.index, fill_value=1).astype(float)
                     divisor_col = divisor_col.replace(0, 1)  # Avoid division by zero
 
                     for col in numeric_cols:
@@ -823,8 +823,8 @@ def main():
                                 logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
 
                 # --- Configure and Display AgGrid ---
-                eff_min = df_display['Weighted Efficiency'].min() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
-                eff_max = df_display['Weighted Efficiency'].max() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
+                eff_min = df_display[config.COL_WEIGHTED_EFFICIENCY].min() if config.COL_WEIGHTED_EFFICIENCY in df_display and not df_display.empty else 0
+                eff_max = df_display[config.COL_WEIGHTED_EFFICIENCY].max() if config.COL_WEIGHTED_EFFICIENCY in df_display and not df_display.empty else 0
                 if pd.isna(eff_min): eff_min = 0
                 if pd.isna(eff_max): eff_max = 0
 
@@ -1007,8 +1007,8 @@ def main():
                         display_data = []
                         
                         for _, building in df_consumables_filtered.iterrows():
-                            building_id = building.get('asset_id')
-                            building_name = building.get('name', 'Unknown')
+                            building_id = building.get(config.COL_ASSET_ID)
+                            building_name = building.get(config.COL_NAME, 'Unknown')
                             building_size = building.get('size', 'Unknown')
                             needs_road = building.get('Road', False)
                             road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
@@ -1200,8 +1200,8 @@ def main():
                         display_data = []
                         
                         for _, building in df_qi_boosts_filtered.iterrows():
-                            building_id = building.get('asset_id')
-                            building_name = building.get('name', 'Unknown')
+                            building_id = building.get(config.COL_ASSET_ID)
+                            building_name = building.get(config.COL_NAME, 'Unknown')
                             building_size = building.get('size', 'Unknown')
                             needs_road = building.get('Road', False)
                             road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
@@ -1368,14 +1368,14 @@ def main():
         # Use the same filtered data from the analysis tab
         # Apply "Per Square" Calculation to visualization data if enabled
         df_viz_display = df_viz_filtered.copy()
-        if show_per_square and 'Nbr of squares (Avg)' in df_viz_display.columns and not df_viz_display.empty:
+        if show_per_square and config.COL_SIZE in df_viz_display.columns and not df_viz_display.empty:
             numeric_cols = [
                 col for col in df_viz_display.columns
                 if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
                 and pd.api.types.is_numeric_dtype(df_viz_display[col])
             ]
             # Use divisor from the filtered df
-            divisor_col = df_viz_display['Nbr of squares (Avg)']
+            divisor_col = df_viz_display[config.COL_SIZE]
             divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
 
             for col in numeric_cols:

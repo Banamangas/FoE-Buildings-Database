@@ -37,7 +37,7 @@ class AdvancedFilterManager:
             if pd.api.types.is_numeric_dtype(self.df[col]):
                 # Only include columns that are in the visible column groups
                 # and exclude columns that shouldn't have range filters
-                if col in visible_columns and col not in ['name', 'Era', 'Event', 'Translated Era']:
+                if col in visible_columns and col not in [config.COL_NAME, config.COL_ERA, config.COL_EVENT, config.COL_TRANSLATED_ERA]:
                     numeric_cols.append(col)
         return sorted(numeric_cols)
     
@@ -53,7 +53,7 @@ class AdvancedFilterManager:
             if not pd.api.types.is_numeric_dtype(self.df[col]):
                 # Only include columns that are in the visible column groups
                 # and exclude name as it has its own search
-                if col in visible_columns and col not in ['name']:
+                if col in visible_columns and col not in [config.COL_NAME]:
                     categorical_cols.append(col)
         return sorted(categorical_cols)
     
