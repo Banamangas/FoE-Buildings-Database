@@ -333,5 +333,6 @@
     "Common": "Common",
     "Uncommon": "Uncommon",
     "Rare": "Rare",
-    "Epic": "Epic"
+    "Epic": "Epic",
+    "page_size": "Rows per page"
 }

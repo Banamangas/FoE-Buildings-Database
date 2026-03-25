@@ -207,7 +207,7 @@ def _render_stats_table(stats_data: list, lang_code: str) -> None:
             },
             hide_index=True,
             height=40*len(stats_data) if len(stats_data) > 10 else 400,
-            width=600
+            use_container_width=True
         )
     else:
         st.info(translations.get_text("no_stats_available", lang_code))
@@ -486,6 +486,14 @@ def main():
             help=translations.get_text("combine_army_simple_help", lang_code)
         )
 
+    page_size_options = [25, 50, 100]
+    page_size = st.sidebar.selectbox(
+        translations.get_text("page_size", lang_code),
+        options=page_size_options,
+        index=1,  # default to 50
+        key="page_size_selector"
+    )
+
     # --- Advanced Filters ---
     if advanced_mode:
         with st.sidebar:
@@ -638,7 +646,7 @@ def main():
                         elif isinstance(value, float):
                             formatted_value = f"{value:.2f}" if value != int(value) else f"{int(value)}"
                         elif is_boolean:
-                            formatted_value = translations.get_text("yes", lang_code) if value else translations.get_text("no", lang_code)
+                            formatted_value = "✔️" if value else "❌"
                         else:
                             formatted_value = str(value)
                         
@@ -945,7 +953,8 @@ def main():
                     show_labels=show_labels,
                     enable_heatmap=enable_heatmap,
                     eff_min=eff_min,
-                    eff_max=eff_max
+                    eff_max=eff_max,
+                    page_size=page_size
                 )
                 
                 # --- Display Filter Information ---

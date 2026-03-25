@@ -546,7 +546,7 @@ def _render_building_summary_columns(
             building_id = building_data.get('id')
             if building_id and building_images.has_building_image(building_id):
                 image_url = building_images.get_building_image_url(building_id)
-                image_width = int(800 / len(selected_buildings))
+                image_width = min(300, int(600 / max(len(selected_buildings), 1)))
                 st.markdown(
                     f"""<div style="text-align: center;">
                         <img src="{image_url}"

@@ -333,5 +333,6 @@
     "Common": "Commun",
     "Uncommon": "Peu commun",
     "Rare": "Rare",
-    "Epic": "Epique"
+    "Epic": "Epique",
+    "page_size": "Lignes par page"
 }

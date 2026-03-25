@@ -288,7 +288,8 @@ def build_grid_options(df_display: pd.DataFrame,
                          show_labels: bool,
                          enable_heatmap: bool,
                          eff_min: float,
-                         eff_max: float) -> Dict[str, Any]:
+                         eff_max: float,
+                         page_size: int = 50) -> Dict[str, Any]:
     """Builds the AgGrid GridOptions dictionary."""
 
     gb = GridOptionsBuilder.from_dataframe(df_display)
@@ -383,7 +384,7 @@ def build_grid_options(df_display: pd.DataFrame,
     )
 
     # Configure pagination
-    gb.configure_pagination(paginationPageSize=50, paginationAutoPageSize=False)
+    gb.configure_pagination(paginationPageSize=page_size, paginationAutoPageSize=False)
 
     grid_options = gb.build()
     

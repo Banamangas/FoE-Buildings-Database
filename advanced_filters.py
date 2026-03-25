@@ -426,9 +426,7 @@ class AdvancedFilterManager:
                             st.write(f"• **{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}")
                         
                         elif "values" in filter_config:
-                            values_str = ", ".join(str(v) for v in filter_config["values"][:3])
-                            if len(filter_config["values"]) > 3:
-                                values_str += f" (+{len(filter_config['values']) - 3} more)"
+                            values_str = ", ".join(str(v) for v in filter_config["values"])
                             st.write(f"• **{exclude_prefix}{translated_name}**: {values_str}")
                         
                         elif "value" in filter_config:
@@ -440,6 +438,49 @@ class AdvancedFilterManager:
                             del st.session_state[config.SessionKeys.ADVANCED_FILTERS][column]
                             st.rerun()
         
+        # Active filter summary expander (visible without opening the full filter panel)
+        active_filters = st.session_state[config.SessionKeys.ADVANCED_FILTERS]
+        if active_filters:
+            active_filter_texts = []
+            for column, filter_config in active_filters.items():
+                translated_name = translations.translate_column(column, self.lang_code)
+                exclude_mode = filter_config.get("exclude", False)
+                exclude_prefix = translations.get_text("not_label", self.lang_code) + " " if exclude_mode else ""
+
+                if "operator" in filter_config:
+                    operator = filter_config["operator"]
+                    value1 = filter_config["value1"]
+                    value2 = filter_config.get("value2")
+                    if operator == "between":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {value1} ≤ value ≤ {value2}")
+                    elif operator == "greater_than":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: > {value1}")
+                    elif operator == "greater_equal":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≥ {value1}")
+                    elif operator == "less_than":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: < {value1}")
+                    elif operator == "less_equal":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≤ {value1}")
+                    elif operator == "equal":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: = {value1}")
+                    elif operator == "not_equal":
+                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≠ {value1}")
+                elif "min" in filter_config or "max" in filter_config:
+                    min_val = filter_config.get("min", "∞")
+                    max_val = filter_config.get("max", "∞")
+                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}")
+                elif "values" in filter_config:
+                    values_str = ", ".join(str(v) for v in filter_config["values"])
+                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {values_str}")
+                elif "value" in filter_config:
+                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {filter_config['value']}")
+
+            if active_filter_texts:
+                summary_label = translations.get_text("active_filters_summary", self.lang_code) + f" ({len(active_filter_texts)})"
+                with st.expander(summary_label, expanded=False):
+                    for text in active_filter_texts:
+                        st.markdown(f"- {text}")
+
         # Apply filters and return filtered dataframe
         return self._apply_filters(self.df)
 
