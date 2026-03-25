@@ -26,6 +26,9 @@ def get_api_config() -> tuple:
         st.error("API configuration not found in secrets. Please configure foe_api.url and foe_api.key in .streamlit/secrets.toml")
         st.stop()
 
+# --- Column Name Constants ---
+COL_NAME = 'name'
+
 # --- Game Data Constants ---
 ERAS_DICT = {
     "SpaceAgeSpaceHub": "Space Age: Space Hub",

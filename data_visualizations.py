@@ -528,6 +528,59 @@ class DataVisualizationManager:
         )
 
 
+def _render_building_summary_columns(
+    selected_buildings: list,
+    df: pd.DataFrame,
+    comparison_metrics: list,
+    viz_manager,
+    lang_code: str,
+) -> None:
+    """Render one summary column per building with image, rank, and metric values."""
+    summary_cols = st.columns(len(selected_buildings))
+
+    for idx, building_name in enumerate(selected_buildings):
+        with summary_cols[idx]:
+            _rows = df[df[config.COL_NAME] == building_name]
+            if _rows.empty:
+                continue
+            building_idx = _rows.index[0]
+            building_data = df.loc[building_idx]
+
+            # Add building image above the summary
+            building_id = building_data.get('id')
+            if building_id and building_images.has_building_image(building_id):
+                image_url = building_images.get_building_image_url(building_id)
+                # Use HTML/CSS for consistent height
+                image_width = int(800 / len(selected_buildings))
+                st.markdown(
+                    f"""
+                    <div style="text-align: center;">
+                        <img src="{image_url}"
+                             style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;"
+                             alt="{building_name}">
+                        <p style="margin-top: 5px; font-size: 14px; color: #666;">{building_name}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                # Placeholder for buildings without images
+                st.markdown(f"**{building_name}**")
+                st.markdown("---")
+
+            # Calculate building's rank in each metric
+            ranks = []
+            for metric in comparison_metrics:
+                if pd.api.types.is_numeric_dtype(df[metric]):
+                    rank = df[metric].rank(ascending=False, method='min')[building_idx]
+                    ranks.append(f"#{int(rank)} in {viz_manager._translate_column(metric)}")
+
+            if ranks:
+                st.write("**Rankings:**")
+                for rank in ranks:  # Show top 3 rankings
+                    st.write(f"• {rank}")
+
+
 def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square: bool = False, combine_army_stats: bool = False) -> None:
     """Main function to render all data visualization components."""
     
@@ -599,26 +652,11 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
         auto_metrics = []
         if len(selected_buildings) >= 2:
             # Get all stats that at least one of the selected buildings has (non-zero values)
-            selected_building_data = []
-            for building_name in selected_buildings:
-                _rows = df[df['name'] == building_name]
-                if _rows.empty:
-                    continue
-                building_data = _rows.iloc[0]
-                selected_building_data.append(building_data)
-            
-            for col in viz_manager.numeric_columns:
-                # Check if at least one building has a non-zero value for this metric
-                has_non_zero = False
-                for building_data in selected_building_data:
-                    if col in building_data:
-                        val = building_data[col]
-                        if val != 0 and not pd.isna(val):
-                            has_non_zero = True
-                            break
-                
-                if has_non_zero:
-                    auto_metrics.append(col)
+            selected_df = df[df[config.COL_NAME].isin(selected_buildings)]
+            auto_metrics = [
+                col for col in viz_manager.numeric_columns
+                if selected_df[col].replace(0, pd.NA).notna().any()
+            ]
         
         # Metrics selection with auto-population
         comparison_metrics = st.multiselect(
@@ -654,50 +692,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                 # Add summary statistics below both components
                 if len(selected_buildings) > 1:
                     st.subheader(translations.get_text("comparison_summary", lang_code))
-                    
-                    summary_cols = st.columns(len(selected_buildings))
-                    
-                    for idx, building_name in enumerate(selected_buildings):
-                        with summary_cols[idx]:
-                            _rows = df[df['name'] == building_name]
-                            if _rows.empty:
-                                continue
-                            building_idx = _rows.index[0]
-                            building_data = df.loc[building_idx]
-
-                            # Add building image above the summary
-                            building_id = building_data.get('id')
-                            if building_id and building_images.has_building_image(building_id):
-                                image_url = building_images.get_building_image_url(building_id)
-                                # Use HTML/CSS for consistent height
-                                image_width = int(800/len(selected_buildings))
-                                st.markdown(
-                                    f"""
-                                    <div style="text-align: center;">
-                                        <img src="{image_url}"
-                                             style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;"
-                                             alt="{building_name}">
-                                        <p style="margin-top: 5px; font-size: 14px; color: #666;">{building_name}</p>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
-                                )
-                            else:
-                                # Placeholder for buildings without images
-                                st.markdown(f"**{building_name}**")
-                                st.markdown("---")
-
-                            # Calculate building's rank in each metric
-                            ranks = []
-                            for metric in comparison_metrics:
-                                if pd.api.types.is_numeric_dtype(df[metric]):
-                                    rank = df[metric].rank(ascending=False, method='min')[building_idx]
-                                    ranks.append(f"#{int(rank)} in {viz_manager._translate_column(metric)}")
-
-                            if ranks:
-                                st.write("**Rankings:**")
-                                for rank in ranks:  # Show top 3 rankings
-                                    st.write(f"• {rank}")
+                    _render_building_summary_columns(selected_buildings, df, comparison_metrics, viz_manager, lang_code)
             else:
                 # Only radar chart available
                 fig = viz_manager.create_comparison_chart(selected_buildings, comparison_metrics, show_per_square)
@@ -710,49 +705,6 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             # Add summary statistics below table
             if len(selected_buildings) > 1:
                 st.subheader(translations.get_text("comparison_summary", lang_code))
-                
-                summary_cols = st.columns(len(selected_buildings))
-                
-                for idx, building_name in enumerate(selected_buildings):
-                    with summary_cols[idx]:
-                        _rows = df[df['name'] == building_name]
-                        if _rows.empty:
-                            continue
-                        building_idx = _rows.index[0]
-                        building_data = df.loc[building_idx]
-
-                        # Add building image above the summary
-                        building_id = building_data.get('id')
-                        if building_id and building_images.has_building_image(building_id):
-                            image_url = building_images.get_building_image_url(building_id)
-                            # Use HTML/CSS for consistent height
-                            image_width = int(800/len(selected_buildings))
-                            st.markdown(
-                                f"""
-                                <div style="text-align: center;">
-                                    <img src="{image_url}"
-                                         style="width: {image_width}px; height: 200px; object-fit: contain; border-radius: 8px;"
-                                         alt="{building_name}">
-                                    <p style="margin-top: 5px; font-size: 14px; color: #666;">{building_name}</p>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-                        else:
-                            # Placeholder for buildings without images
-                            st.markdown(f"**{building_name}**")
-                            st.markdown("---")
-
-                        # Calculate building's rank in each metric
-                        ranks = []
-                        for metric in comparison_metrics:
-                            if pd.api.types.is_numeric_dtype(df[metric]):
-                                rank = df[metric].rank(ascending=False, method='min')[building_idx]
-                                ranks.append(f"#{int(rank)} in {viz_manager._translate_column(metric)}")
-
-                        if ranks:
-                            st.write("**Rankings:**")
-                            for rank in ranks:  # Show top 3 rankings
-                                st.write(f"• {rank}")
+                _render_building_summary_columns(selected_buildings, df, comparison_metrics, viz_manager, lang_code)
     
  
