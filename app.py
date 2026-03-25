@@ -214,6 +214,16 @@ def _render_stats_table(stats_data: list, lang_code: str) -> None:
         st.info(translations.get_text("no_stats_available", lang_code))
 
 
+def _weights_state_hash(user_weights: dict, user_context: dict, user_boosts: dict) -> str:
+    """Return a stable hash of the current weights/context/boosts state."""
+    data = {
+        'w': {k: v for k, v in sorted(user_weights.items()) if v != 0},
+        'c': {k: v for k, v in sorted(user_context.items())},
+        'b': {k: v for k, v in sorted(user_boosts.items())},
+    }
+    return hashlib.md5(json.dumps(data).encode()).hexdigest()
+
+
 def _render_column_analysis_subtab(
     df: pd.DataFrame,
     selected_cols: list,

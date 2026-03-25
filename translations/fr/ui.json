@@ -338,5 +338,12 @@
     "page_size": "Lignes par page",
     "loading_data": "Chargement des données…",
     "calculating_scores": "Calcul des scores d'efficacité…",
-    "analysing_city": "Analyse de la ville…"
+    "analysing_city": "Analyse de la ville…",
+    "weight_profile": "Profil de pondération",
+    "export_profile": "⬇️ Exporter le profil",
+    "export_profile_help": "Téléchargez vos pondérations, valeurs de contexte et boosts actuels au format JSON.",
+    "import_profile": "⬆️ Importer le profil",
+    "import_profile_help": "Importez un profil JSON exporté précédemment pour restaurer vos paramètres.",
+    "profile_imported": "Profil importé avec succès. Pondérations mises à jour.",
+    "profile_import_error": "Échec de l'importation du profil"
 }
