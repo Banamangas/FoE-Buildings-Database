@@ -10,6 +10,8 @@ import translations
 import ui_components
 import building_images
 
+logger = config.logger
+
 
 class DataVisualizationManager:
     """Advanced data visualization system with charts, comparisons, and interactive analysis."""
@@ -130,8 +132,8 @@ class DataVisualizationManager:
                     line=dict(dash='dash', color='red', width=2),
                     showlegend=True
                 ))
-            except:
-                pass  # Skip trend line if calculation fails
+            except Exception as e:
+                logger.debug(f"Trend line calculation failed, skipping: {e}")
         
         return fig
     
@@ -480,7 +482,7 @@ class DataVisualizationManager:
                     try:
                         # Remove % sign and convert to float
                         val_str = str(row[col]).replace('%', '').replace(',', '')
-                        if val_str.lower() not in ['yes', 'no', 'true', 'false', '']:
+                        if val_str.lower() not in ['yes', 'no', 'true', 'false', '', 'nan']:
                             numeric_values[col] = float(val_str)
                     except (ValueError, TypeError):
                         pass

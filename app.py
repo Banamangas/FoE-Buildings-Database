@@ -813,9 +813,9 @@ def main():
                         if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
                         and pd.api.types.is_numeric_dtype(df_display[col])
                     ]
-                    # Use divisor from the filtered df *before* potential division
-                    divisor_col = df_viz_filtered.loc[df_display.index, 'Nbr of squares (Avg)']
-                    divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
+                    # Reindex to df_display's order; fill_value=1 avoids KeyError if indices diverge
+                    divisor_col = df_viz_filtered['Nbr of squares (Avg)'].reindex(df_display.index, fill_value=1).astype(float)
+                    divisor_col = divisor_col.replace(0, 1)  # Avoid division by zero
 
                     for col in numeric_cols:
                         if col in df_display:

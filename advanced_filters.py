@@ -292,15 +292,17 @@ class AdvancedFilterManager:
         else:  # OR logic
             if len(st.session_state.advanced_filters) == 0:
                 return filtered_df
-            
+
             combined_mask = pd.Series([False] * len(df), index=df.index)
-            
+
             for column, filter_config in st.session_state.advanced_filters.items():
                 if column not in df.columns:
                     continue
-                
+
+                # Default to no-match; each branch below overwrites this
+                column_mask = pd.Series([False] * len(df), index=df.index)
                 exclude_mode = filter_config.get("exclude", False)
-                
+
                 # Handle new operator-based numeric filters
                 if "operator" in filter_config:
                     operator = filter_config["operator"]

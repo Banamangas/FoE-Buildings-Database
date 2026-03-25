@@ -25,7 +25,11 @@ def _ss_key(asset_id: str) -> str:
     """Convert a building asset ID to its _SS_ ForgeHX path key.
 
     Example: 'W_MultiAge_FOO' -> '/city/buildings/W_SS_MultiAge_FOO.png'
+
+    Raises ValueError if asset_id contains no underscore.
     """
+    if "_" not in asset_id:
+        raise ValueError(f"asset_id has no underscore, cannot build _SS_ key: {asset_id!r}")
     i = asset_id.index("_")
     return f"/city/buildings/{asset_id[:i]}_SS_{asset_id[i + 1:]}.png"
 
@@ -54,8 +58,8 @@ class BuildingImageManager:
             h = self._forgehx.get(key)
             if h:
                 return f"{FORGEHX_IMAGE_BASE}{key[:-4]}-{h}.png"
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.debug(f"Cannot build image URL for asset_id={asset_id!r}: {e}")
         return None
 
     def has_image(self, asset_id: str) -> bool:
@@ -65,7 +69,8 @@ class BuildingImageManager:
         self._ensure_loaded()
         try:
             return _ss_key(asset_id) in self._forgehx
-        except ValueError:
+        except ValueError as e:
+            logger.debug(f"Cannot check image for asset_id={asset_id!r}: {e}")
             return False
 
     def get_all_path_urls(self) -> Dict[str, str]:
