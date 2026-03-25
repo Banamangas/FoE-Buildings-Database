@@ -102,6 +102,35 @@ def combine_army_with_ge_gbg(df: pd.DataFrame) -> pd.DataFrame:
     return df_combined
 
 
+def _render_stats_table(stats_data: list, lang_code: str) -> None:
+    """Render the building stats table with icon, statistic, and value columns."""
+    if stats_data:
+        stats_df = pd.DataFrame(stats_data)
+        st.dataframe(
+            stats_df,
+            column_config={
+                "Icon": st.column_config.ImageColumn(
+                    label="",
+                    width=None,
+                    pinned=True
+                ),
+                "Statistic": st.column_config.TextColumn(
+                    label=translations.get_text("stat_name", lang_code),
+                    width=None
+                ),
+                "Value": st.column_config.TextColumn(
+                    label=translations.get_text("value", lang_code),
+                    width=None
+                )
+            },
+            hide_index=True,
+            height=40*len(stats_data) if len(stats_data) > 10 else 400,
+            width=600
+        )
+    else:
+        st.info(translations.get_text("no_stats_available", lang_code))
+
+
 def main():
     # --- Page Config ---
     st.set_page_config(
@@ -520,34 +549,7 @@ def main():
                 table_col, img_col = st.columns([2, 4])
                 
                 with table_col:
-                    if stats_data:
-                        # Create DataFrame for the stats table
-                        stats_df = pd.DataFrame(stats_data)
-                        
-                        # Display the stats table using Streamlit's dataframe with column config
-                        st.dataframe(
-                            stats_df,
-                            column_config={
-                                "Icon": st.column_config.ImageColumn(
-                                    label="",
-                                    width=None,
-                                    pinned=True
-                                ),
-                                "Statistic": st.column_config.TextColumn(
-                                    label=translations.get_text("stat_name", lang_code),
-                                    width=None
-                                ),
-                                "Value": st.column_config.TextColumn(
-                                    label=translations.get_text("value", lang_code),
-                                    width=None
-                                )
-                            },
-                            hide_index=True,
-                            height=40*len(stats_data) if len(stats_data) > 10 else 400,
-                            width=600
-                        )
-                    else:
-                        st.info(translations.get_text("no_stats_available", lang_code))
+                    _render_stats_table(stats_data, lang_code)
                 
                 with img_col:
                     image_url = cached_image_manager.get_building_image_url(building_asset_id)
@@ -558,34 +560,7 @@ def main():
                     )
             else:
                 # No image available, show table full width
-                if stats_data:
-                    # Create DataFrame for the stats table
-                    stats_df = pd.DataFrame(stats_data)
-                    
-                    # Display the stats table using Streamlit's dataframe with column config
-                    st.dataframe(
-                        stats_df,
-                        column_config={
-                            "Icon": st.column_config.ImageColumn(
-                                label="",
-                                width=None,
-                                pinned=True
-                            ),
-                            "Statistic": st.column_config.TextColumn(
-                                label=translations.get_text("stat_name", lang_code),
-                                width=None
-                            ),
-                            "Value": st.column_config.TextColumn(
-                                label=translations.get_text("value", lang_code),
-                                width=None
-                            )
-                        },
-                        hide_index=True,
-                        height=40*len(stats_data) if len(stats_data) > 10 else 400,
-                        width=600
-                    )
-                else:
-                    st.info(translations.get_text("no_stats_available", lang_code))
+                _render_stats_table(stats_data, lang_code)
         else:
             st.info(translations.get_text("no_building_selected", lang_code))
     
