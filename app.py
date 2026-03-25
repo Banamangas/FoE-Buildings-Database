@@ -131,6 +131,113 @@ def _render_stats_table(stats_data: list, lang_code: str) -> None:
         st.info(translations.get_text("no_stats_available", lang_code))
 
 
+def _render_column_analysis_subtab(
+    df: pd.DataFrame,
+    selected_cols: list,
+    config_builder_fn,
+    export_prefix: str,
+    no_buildings_key: str,
+    lang_code: str,
+    image_manager,
+) -> None:
+    """Render the shared results section for Consumables and QI Boosts subtabs.
+
+    Args:
+        df: Source DataFrame (all buildings for this era/filter).
+        selected_cols: Columns chosen in the multiselect.
+        config_builder_fn: Callable(display_df, selected_cols, lang_code) ->
+            (display_df, extra_column_config_dict). May transform values and
+            must return per-column NumberColumn config entries.
+        export_prefix: File-name prefix for CSV/JSON downloads.
+        no_buildings_key: i18n key shown when no buildings match the selection.
+        lang_code: Active language code.
+        image_manager: Cached image manager instance.
+    """
+    mask = (df[selected_cols] > 0).any(axis=1)
+    df_filtered = df[mask].copy()
+
+    if df_filtered.empty:
+        st.info(translations.get_text(no_buildings_key, lang_code))
+        return
+
+    display_data = []
+    for _, building in df_filtered.iterrows():
+        building_id = building.get(config.COL_ASSET_ID)
+        building_name = building.get(config.COL_NAME, 'Unknown')
+        building_size = building.get('size', 'Unknown')
+        needs_road = building.get('Road', False)
+        road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
+
+        image_url = None
+        if building_id and image_manager.has_image(building_id):
+            image_url = image_manager.get_building_image_url(building_id)
+
+        row_data = {
+            "Building Image": image_url,
+            "Building Name": building_name,
+            "Size": building_size,
+            "Road": road_text,
+        }
+        for col in selected_cols:
+            value = building.get(col, 0)
+            if value > 0:
+                row_data[translations.translate_column(col, lang_code)] = value
+        display_data.append(row_data)
+
+    if not display_data:
+        st.info(translations.get_text(no_buildings_key, lang_code))
+        return
+
+    display_df = pd.DataFrame(display_data)
+
+    sort_cols = [translations.translate_column(col, lang_code) for col in selected_cols
+                 if translations.translate_column(col, lang_code) in display_df.columns]
+    if sort_cols:
+        display_df = display_df.sort_values(by=sort_cols, ascending=False).reset_index(drop=True)
+
+    display_df, extra_config = config_builder_fn(display_df, selected_cols, lang_code)
+
+    column_config = {
+        "Building Image": st.column_config.ImageColumn(label="🏢", width="small"),
+        "Building Name": st.column_config.TextColumn(
+            label=translations.get_text("building_name", lang_code), width="medium"),
+        "Size": st.column_config.TextColumn(label=translations.get_text("size", lang_code), width="small"),
+        "Road": st.column_config.TextColumn(label=translations.get_text("road", lang_code), width="small"),
+    }
+    column_config.update(extra_config)
+
+    st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
+    st.write(f"**{len(display_df)} {translations.get_text('buildings_found', lang_code)}**")
+    st.dataframe(
+        display_df,
+        column_config=column_config,
+        hide_index=True,
+        width='content',
+        height=min(600, max(200, len(display_df) * 40 + 100)),
+    )
+
+    if len(display_df) > 0:
+        st.markdown("---")
+        export_df = display_df.drop(columns=["Building Image"], errors="ignore")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                label=translations.get_text("export_csv", lang_code),
+                data=export_df.to_csv(index=False, sep=";").encode('utf-8'),
+                file_name=f"{export_prefix}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+                mime="text/csv",
+                key=f"export_{export_prefix}_csv",
+            )
+        with col2:
+            st.download_button(
+                label=translations.get_text("export_json", lang_code),
+                data=export_df.to_json(orient="records", force_ascii=False).encode('utf-8'),
+                file_name=f"{export_prefix}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
+                mime="application/json",
+                key=f"export_{export_prefix}_json",
+            )
+
+
 def main():
     # --- Page Config ---
     st.set_page_config(
@@ -946,159 +1053,35 @@ def main():
                     )
                 
                 if selected_consumables:
-                    # Create a copy of the data without per-square calculation
-                    df_consumables = df_viz_filtered.copy()
-                    
-                    # Filter buildings that produce at least one of the selected consumables
-                    consumables_mask = (df_consumables[selected_consumables] > 0).any(axis=1)
-                    df_consumables_filtered = df_consumables[consumables_mask].copy()
-                    
-                    if df_consumables_filtered.empty:
-                        st.info(translations.get_text("no_buildings_produce_consumables", lang_code))
-                    else:
-                        # Prepare the display data
-                        display_data = []
-                        
-                        for _, building in df_consumables_filtered.iterrows():
-                            building_id = building.get(config.COL_ASSET_ID)
-                            building_name = building.get(config.COL_NAME, 'Unknown')
-                            building_size = building.get('size', 'Unknown')
-                            needs_road = building.get('Road', False)
-                            road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
-                            
-                            # Get building image URL
-                            image_url = None
-                            if building_id and cached_image_manager.has_image(building_id):
-                                image_url = cached_image_manager.get_building_image_url(building_id)
-                            
-                            # Create base row data
-                            row_data = {
-                                "Building Image": image_url,
-                                "Building Name": building_name,
-                                "Size": building_size,
-                                "Road": road_text
-                            }
-                            
-                            # Add consumable production data (store as numeric for proper sorting)
-                            for consumable in selected_consumables:
-                                production_value = building.get(consumable, 0)
-                                if production_value > 0:
-                                    translated_consumable = translations.translate_column(consumable, lang_code)
-                                    # Store the raw numeric value for sorting
-                                    row_data[translated_consumable] = production_value
-
-                            display_data.append(row_data)
-                        
-                        if display_data:
-                            # Create DataFrame for display (values are already numeric for proper sorting)
-                            consumables_df = pd.DataFrame(display_data)
-                            
-                            # Sort columns list
-                            sort_columns = [translations.translate_column(consumable, lang_code) 
-                                          for consumable in selected_consumables 
-                                          if translations.translate_column(consumable, lang_code) in consumables_df.columns]
-                            
-                            # Initial sort by production values (descending - highest production first)
-                            if sort_columns:
-                                consumables_df = consumables_df.sort_values(
-                                    by=sort_columns, 
-                                    ascending=False
-                                ).reset_index(drop=True)
-                            
-                            # Transform values if frequency format is selected
+                    def _consumables_config_builder(display_df, selected_cols, lang_code):
+                        extra = {}
+                        for col in selected_cols:
+                            translated = translations.translate_column(col, lang_code)
+                            if translated not in display_df.columns:
+                                continue
                             if show_frequency_format:
-                                for consumable in selected_consumables:
-                                    translated_name = translations.translate_column(consumable, lang_code)
-                                    if translated_name in consumables_df.columns:
-                                        # Transform to days per unit (1 / production_per_day)
-                                        consumables_df[translated_name] = 1 / consumables_df[translated_name]
-                            
-                            # Configure column display
-                            column_config = {
-                                "Building Image": st.column_config.ImageColumn(
-                                    label="🏢",
-                                    width="small"
-                                ),
-                                "Building Name": st.column_config.TextColumn(
-                                    label=translations.get_text("building_name", lang_code),
-                                    width="medium"
-                                ),
-                                "Size": st.column_config.TextColumn(
-                                    label=translations.get_text("size", lang_code),
-                                    width="small"
-                                ),
-                                "Road": st.column_config.TextColumn(
-                                    label=translations.get_text("road", lang_code),
-                                    width="small"
-                                )
-                            }
-                            
-                            # Add consumable columns to config with numeric formatting
-                            for consumable in selected_consumables:
-                                translated_name = translations.translate_column(consumable, lang_code)
-                                if translated_name in consumables_df.columns:
-                                    # Use NumberColumn for proper numeric sorting
-                                    if show_frequency_format:
-                                        # Frequency format - showing days per unit
-                                        suffix = " days" if lang_code == "en" else " jours"
-                                        help_text = "Days per unit (lower is better)" if lang_code == "en" else "Jours par unité (moins c'est mieux)"
-                                        
-                                        column_config[translated_name] = st.column_config.NumberColumn(
-                                            label=translated_name,
-                                            width="medium",
-                                            format="%.2f" + suffix,
-                                            help=help_text
-                                        )
-                                    else:
-                                        # Show per day format
-                                        suffix = "/day" if lang_code == "en" else "/jour"
-                                        column_config[translated_name] = st.column_config.NumberColumn(
-                                            label=translated_name,
-                                            width="medium",
-                                            format="%.2f" + suffix
-                                        )
-                            
-                            # Display summary
-                            st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
-                            st.write(f"**{len(consumables_df)} {translations.get_text('buildings_found', lang_code)}**")
-                            
-                            # Display the table
-                            st.dataframe(
-                                consumables_df,
-                                column_config=column_config,
-                                hide_index=True,
-                                width='content',
-                                height=min(600, max(200, len(consumables_df) * 40 + 100))
-                            )
-                            
-                            # Export functionality
-                            if len(consumables_df) > 0:
-                                st.markdown("---")
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    # CSV Export
-                                    csv_string = consumables_df.to_csv(index=False, sep=";")
-                                    st.download_button(
-                                        label=translations.get_text("export_csv", lang_code),
-                                        data=csv_string.encode('utf-8'),
-                                        file_name=f"consumables_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
-                                        mime="text/csv",
-                                        key="export_consumables_csv"
-                                    )
-                                
-                                with col2:
-                                    # JSON Export
-                                    json_string = consumables_df.to_json(orient="records", force_ascii=False)
-                                    st.download_button(
-                                        label=translations.get_text("export_json", lang_code),
-                                        data=json_string.encode('utf-8'),
-                                        file_name=f"consumables_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
-                                        mime="application/json",
-                                        key="export_consumables_json"
-                                    )
-                        else:
-                            st.info(translations.get_text("no_buildings_produce_selected_consumables", lang_code))
+                                display_df[translated] = 1 / display_df[translated]
+                                suffix = " days" if lang_code == "en" else " jours"
+                                help_text = ("Days per unit (lower is better)" if lang_code == "en"
+                                             else "Jours par unité (moins c'est mieux)")
+                                extra[translated] = st.column_config.NumberColumn(
+                                    label=translated, width="medium",
+                                    format="%.2f" + suffix, help=help_text)
+                            else:
+                                suffix = "/day" if lang_code == "en" else "/jour"
+                                extra[translated] = st.column_config.NumberColumn(
+                                    label=translated, width="medium", format="%.2f" + suffix)
+                        return display_df, extra
+
+                    _render_column_analysis_subtab(
+                        df=df_viz_filtered,
+                        selected_cols=selected_consumables,
+                        config_builder_fn=_consumables_config_builder,
+                        export_prefix="consumables_analysis",
+                        no_buildings_key="no_buildings_produce_consumables",
+                        lang_code=lang_code,
+                        image_manager=cached_image_manager,
+                    )
                 else:
                     st.info(translations.get_text("select_consumables_to_analyze", lang_code))
         
@@ -1139,162 +1122,29 @@ def main():
                     )
                 
                 if selected_qi_boosts:
-                    # Create a copy of the data without per-square calculation
-                    df_qi_boosts = df_viz_filtered.copy()
-                    
-                    # Filter buildings that provide at least one of the selected QI boosts
-                    qi_boosts_mask = (df_qi_boosts[selected_qi_boosts] > 0).any(axis=1)
-                    df_qi_boosts_filtered = df_qi_boosts[qi_boosts_mask].copy()
-                    
-                    if df_qi_boosts_filtered.empty:
-                        st.info(translations.get_text("no_buildings_provide_qi_boosts", lang_code))
-                    else:
-                        # Prepare the display data
-                        display_data = []
-                        
-                        for _, building in df_qi_boosts_filtered.iterrows():
-                            building_id = building.get(config.COL_ASSET_ID)
-                            building_name = building.get(config.COL_NAME, 'Unknown')
-                            building_size = building.get('size', 'Unknown')
-                            needs_road = building.get('Road', False)
-                            road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
-                            
-                            # Get building image URL
-                            image_url = None
-                            if building_id and cached_image_manager.has_image(building_id):
-                                image_url = cached_image_manager.get_building_image_url(building_id)
-                            
-                            # Create base row data
-                            row_data = {
-                                "Building Image": image_url,
-                                "Building Name": building_name,
-                                "Size": building_size,
-                                "Road": road_text
-                            }
-                            
-                            # Add QI boost data (store as numeric values for proper sorting)
-                            for qi_boost in selected_qi_boosts:
-                                boost_value = building.get(qi_boost, 0)
-                                if boost_value > 0:
-                                    # Store numeric value - formatting will be handled by column_config
-                                    translated_qi_boost = translations.translate_column(qi_boost, lang_code)
-                                    row_data[translated_qi_boost] = boost_value
+                    def _qi_config_builder(display_df, selected_cols, lang_code):
+                        extra = {}
+                        for col in selected_cols:
+                            translated = translations.translate_column(col, lang_code)
+                            if translated not in display_df.columns:
+                                continue
+                            if col in config.PERCENTAGE_COLUMNS:
+                                fmt = "%.0f%%" if show_actual_values else "+%.0f%%"
+                            else:
+                                fmt = "%.0f"
+                            extra[translated] = st.column_config.NumberColumn(
+                                label=translated, width="medium", format=fmt)
+                        return display_df, extra
 
-                            display_data.append(row_data)
-                        
-                        if display_data:
-                            # Create DataFrame for display (values are already numeric for proper sorting)
-                            qi_boosts_df = pd.DataFrame(display_data)
-                            
-                            # Sort by QI boost values numerically (descending - highest first)
-                            sort_columns = [translations.translate_column(qi_boost, lang_code) 
-                                          for qi_boost in selected_qi_boosts 
-                                          if translations.translate_column(qi_boost, lang_code) in qi_boosts_df.columns]
-                            
-                            if sort_columns:
-                                qi_boosts_df = qi_boosts_df.sort_values(
-                                    by=sort_columns, 
-                                    ascending=False
-                                ).reset_index(drop=True)
-                            
-                            # Configure column display
-                            column_config = {
-                                "Building Image": st.column_config.ImageColumn(
-                                    label="🏢",
-                                    width="small"
-                                ),
-                                "Building Name": st.column_config.TextColumn(
-                                    label=translations.get_text("building_name", lang_code),
-                                    width="medium"
-                                ),
-                                "Size": st.column_config.TextColumn(
-                                    label=translations.get_text("size", lang_code),
-                                    width="small"
-                                ),
-                                "Road": st.column_config.TextColumn(
-                                    label=translations.get_text("road", lang_code),
-                                    width="small"
-                                )
-                            }
-                            
-                            # Add QI boost columns to config with numeric formatting
-                            for qi_boost in selected_qi_boosts:
-                                translated_name = translations.translate_column(qi_boost, lang_code)
-                                if translated_name in qi_boosts_df.columns:
-                                    # Use NumberColumn for proper numeric sorting
-                                    if qi_boost in config.PERCENTAGE_COLUMNS:
-                                        if show_actual_values:
-                                            format_string = "%.0f%%"
-                                        else:
-                                            format_string = "+%.0f%%"
-                                    else:
-                                        format_string = "%.0f"
-                                    
-                                    column_config[translated_name] = st.column_config.NumberColumn(
-                                        label=translated_name,
-                                        width="medium",
-                                        format=format_string
-                                    )
-                            
-                            # Display summary
-                            st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
-                            st.write(f"**{len(qi_boosts_df)} {translations.get_text('buildings_found', lang_code)}**")
-                            
-                            # Display the table
-                            st.dataframe(
-                                qi_boosts_df,
-                                column_config=column_config,
-                                hide_index=True,
-                                width='content',
-                                height=min(600, max(200, len(qi_boosts_df) * 40 + 100))
-                            )
-                            
-                            # Export functionality
-                            if len(qi_boosts_df) > 0:
-                                st.markdown("---")
-                                st.subheader("📤 " + translations.get_text("export_results", lang_code))
-                                
-                                # Prepare export data
-                                export_data = []
-                                for _, combo in qi_boosts_df.iterrows():
-                                    row = {
-                                        translations.get_text("building_name", lang_code): combo.get("Building Name", ""),
-                                        translations.get_text("size", lang_code): combo.get("Size", ""),
-                                        translations.get_text("road", lang_code): combo.get("Road", "")
-                                    }
-                                    
-                                    # Add QI boost columns
-                                    for qi_boost in selected_qi_boosts:
-                                        translated_qi_boost = translations.translate_column(qi_boost, lang_code)
-                                        if translated_qi_boost in combo:
-                                            row[translated_qi_boost] = combo[translated_qi_boost]
-                                    
-                                    export_data.append(row)
-                                
-                                export_df = pd.DataFrame(export_data)
-                                
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    csv_string = export_df.to_csv(index=False, sep=";")
-                                    st.download_button(
-                                        label=translations.get_text("export_csv", lang_code),
-                                        data=csv_string.encode('utf-8'),
-                                        file_name=f"qi_boosts_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
-                                        mime="text/csv",
-                                        key="export_qi_boosts_csv"
-                                    )
-                                
-                                with col2:
-                                    json_string = export_df.to_json(orient="records", force_ascii=False)
-                                    st.download_button(
-                                        label=translations.get_text("export_json", lang_code),
-                                        data=json_string.encode('utf-8'),
-                                        file_name=f"qi_boosts_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
-                                        mime="application/json",
-                                        key="export_qi_boosts_json"
-                                    )
-                        else:
-                            st.info(translations.get_text("no_buildings_provide_selected_qi_boosts", lang_code))
+                    _render_column_analysis_subtab(
+                        df=df_viz_filtered,
+                        selected_cols=selected_qi_boosts,
+                        config_builder_fn=_qi_config_builder,
+                        export_prefix="qi_boosts_analysis",
+                        no_buildings_key="no_buildings_provide_qi_boosts",
+                        lang_code=lang_code,
+                        image_manager=cached_image_manager,
+                    )
                 else:
                     st.info(translations.get_text("select_qi_boosts_to_analyze", lang_code))
         
