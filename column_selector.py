@@ -39,9 +39,9 @@ class ColumnSelector:
         """Create a column selection item with icon and translated name."""
         translated_name = translations.translate_column(col, self.lang_code)
         # Always read from session state to ensure checkboxes reflect current state
-        is_selected = col in st.session_state.selected_columns_set
+        is_selected = col in st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET]
         # Include refresh counter in key to force widget recreation when buttons are clicked
-        refresh_counter = st.session_state.get('column_selector_refresh', 0)
+        refresh_counter = st.session_state.get(config.SessionKeys.COLUMN_SELECTOR_REFRESH, 0)
         
         if self._has_icon(col):
             icon_base64 = ui_components.get_icon_base64(col)
@@ -139,16 +139,16 @@ class ColumnSelector:
         st.header(translations.get_text("column_selection", lang_code=self.lang_code))
         
         # Initialize session state for selected columns if not exists
-        if 'selected_columns_set' not in st.session_state:
+        if config.SessionKeys.SELECTED_COLUMNS_SET not in st.session_state:
             # Default selection
             default_columns = config.COLUMN_PRESETS["basic_analysis"]["columns"]
-            st.session_state.selected_columns_set = set(default_columns + ['name'])
-        
+            st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = set(default_columns + ['name'])
+
         # Initialize a counter to force widget refresh when buttons are clicked
-        if 'column_selector_refresh' not in st.session_state:
-            st.session_state.column_selector_refresh = 0
-        
-        selected_columns = st.session_state.selected_columns_set
+        if config.SessionKeys.COLUMN_SELECTOR_REFRESH not in st.session_state:
+            st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] = 0
+
+        selected_columns = st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET]
         
         # Preset Selection
         with st.expander("📋 " + translations.get_text("column_presets", lang_code=self.lang_code), expanded=True):
@@ -157,52 +157,52 @@ class ColumnSelector:
             with preset_cols[0]:
                 if st.button(translations.get_text("preset_basic_analysis", lang_code=self.lang_code), 
                             width='stretch', key="preset_basic"):
-                    st.session_state.selected_columns_set = self._apply_preset("basic_analysis", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("basic_analysis", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
                 
                 if st.button(translations.get_text("preset_production_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_production"):
-                    st.session_state.selected_columns_set = self._apply_preset("production_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("production_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
 
                 if st.button(translations.get_text("preset_military_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_military"):
-                    st.session_state.selected_columns_set = self._apply_preset("military_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("military_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
                 
                 if st.button(translations.get_text("preset_fsp_usage", lang_code=self.lang_code), 
                             width='stretch', key="preset_fsp"):
-                    st.session_state.selected_columns_set = self._apply_preset("fsp_usage", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("fsp_usage", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
             
             with preset_cols[1]:
                 
                 if st.button(translations.get_text("preset_gbg_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_gbg"):
-                    st.session_state.selected_columns_set = self._apply_preset("gbg_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("gbg_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
 
                 if st.button(translations.get_text("preset_ge_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_ge"):
-                    st.session_state.selected_columns_set = self._apply_preset("ge_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("ge_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
 
                 if st.button(translations.get_text("preset_qi_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_qi"):
-                    st.session_state.selected_columns_set = self._apply_preset("qi_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("qi_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
 
                 if st.button(translations.get_text("preset_consumables_focus", lang_code=self.lang_code), 
                             width='stretch', key="preset_consumables"):
-                    st.session_state.selected_columns_set = self._apply_preset("consumables_focus", selected_columns)
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = self._apply_preset("consumables_focus", selected_columns)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
 
         # Search functionality (only show if enabled)
@@ -225,25 +225,25 @@ class ColumnSelector:
                 if st.button(translations.get_text("select_all_visible", lang_code=self.lang_code), 
                             width='stretch', key="select_all_visible"):
                     for group_cols in filtered_columns.values():
-                        st.session_state.selected_columns_set.update(group_cols)
-                    st.session_state.column_selector_refresh += 1
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].update(group_cols)
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
             
             with action_cols[1]:
                 if st.button(translations.get_text("deselect_all_visible", lang_code=self.lang_code), 
                             width='stretch', key="deselect_all_visible"):
                     for group_cols in filtered_columns.values():
-                        st.session_state.selected_columns_set.difference_update(group_cols)
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].difference_update(group_cols)
                     # Always keep 'name' column
-                    st.session_state.selected_columns_set.add('name')
-                    st.session_state.column_selector_refresh += 1
+                    st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].add('name')
+                    st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                     st.rerun()
         
         # Clear all button on its own row
         if st.button(translations.get_text("clear_all_selections", lang_code=self.lang_code), 
                     width='stretch', key="clear_all"):
-            st.session_state.selected_columns_set = {'name'}
-            st.session_state.column_selector_refresh += 1
+            st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = {'name'}
+            st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
             st.rerun()
         
         # Column selection by groups
@@ -269,17 +269,17 @@ class ColumnSelector:
                 with group_cols[0]:
                     if st.button(f"✅ {translations.get_text('select_all', self.lang_code)}", 
                                key=f"select_all_{group_key}", width='stretch'):
-                        st.session_state.selected_columns_set.update(group_columns)
-                        st.session_state.column_selector_refresh += 1
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].update(group_columns)
+                        st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                         st.rerun()
                 
                 with group_cols[1]:
                     if st.button(f"❌ {translations.get_text('deselect_all', self.lang_code)}", 
                                key=f"deselect_all_{group_key}", width='stretch'):
-                        st.session_state.selected_columns_set.difference_update(group_columns)
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].difference_update(group_columns)
                         # Keep name column
-                        st.session_state.selected_columns_set.add('name')
-                        st.session_state.column_selector_refresh += 1
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].add('name')
+                        st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] += 1
                         st.rerun()
                 
                 # Show columns in this group
@@ -290,22 +290,22 @@ class ColumnSelector:
                     new_selection = self._create_column_item(col, selected_columns, f"_{group_key}")
                     
                     # Use session state directly for change detection
-                    if new_selection and col not in st.session_state.selected_columns_set:
-                        st.session_state.selected_columns_set.add(col)
+                    if new_selection and col not in st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET]:
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].add(col)
                         changes_made = True
-                    elif not new_selection and col in st.session_state.selected_columns_set:
-                        st.session_state.selected_columns_set.discard(col)
+                    elif not new_selection and col in st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET]:
+                        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].discard(col)
                         changes_made = True
                     
         
         # Always ensure 'name' is selected
-        st.session_state.selected_columns_set.add('name')
+        st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].add('name')
         
         if changes_made:
             st.rerun()
         
         # Sort selected columns according to COLUMN_GROUPS order
-        return self._sort_columns_by_group_order(st.session_state.selected_columns_set)
+        return self._sort_columns_by_group_order(st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET])
 
 
 def render_enhanced_column_selector(df_original: pd.DataFrame, lang_code: str, show_search: bool = True) -> List[str]:

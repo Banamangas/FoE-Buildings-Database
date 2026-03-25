@@ -288,6 +288,26 @@ USER_BOOST_FIELDS = {
     }
 }
 
+# --- Session State Key Constants ---
+# Centralised namespace to prevent typos and ease future refactoring.
+class SessionKeys:
+    LANGUAGE = 'language'
+    USER_WEIGHTS = 'user_weights'
+    USER_CONTEXT = 'user_context'
+    USER_BOOSTS = 'user_boosts'
+    ACTIVE_MAIN_TAB = 'active_main_tab'
+    ACTIVE_ANALYSIS_SUBTAB = 'active_analysis_subtab'
+    SELECTION_BUILDING = 'selection_building'
+    SELECTED_COLUMNS_SET = 'selected_columns_set'
+    COLUMN_SELECTOR_REFRESH = 'column_selector_refresh'
+    ADVANCED_FILTERS = 'advanced_filters'
+    FILTER_LOGIC = 'filter_logic'
+    ACTIVE_FILTERS_COUNT = 'active_filters_count'
+    IMPORTED_INVENTORY = 'imported_inventory'
+    IMPORTED_CITY = 'imported_city'
+    SESSION_ID = 'session_id'
+
+
 RANKING_POINTS_PER_RESOURCE = {
     "forge_points": 15,
     "goods": {

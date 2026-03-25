@@ -18,12 +18,12 @@ class AdvancedFilterManager:
         self.categorical_columns = self._get_categorical_columns()
         
         # Initialize session state for filters
-        if 'advanced_filters' not in st.session_state:
-            st.session_state.advanced_filters = {}
-        if 'filter_logic' not in st.session_state:
-            st.session_state.filter_logic = "AND"
-        if 'active_filters_count' not in st.session_state:
-            st.session_state.active_filters_count = 0
+        if config.SessionKeys.ADVANCED_FILTERS not in st.session_state:
+            st.session_state[config.SessionKeys.ADVANCED_FILTERS] = {}
+        if config.SessionKeys.FILTER_LOGIC not in st.session_state:
+            st.session_state[config.SessionKeys.FILTER_LOGIC] = "AND"
+        if config.SessionKeys.ACTIVE_FILTERS_COUNT not in st.session_state:
+            st.session_state[config.SessionKeys.ACTIVE_FILTERS_COUNT] = 0
     
     def _get_numeric_columns(self) -> List[str]:
         """Get list of numeric columns suitable for range filtering."""
@@ -75,7 +75,7 @@ class AdvancedFilterManager:
         translated_name = translations.translate_column(column, self.lang_code)
         
         # Get current filter values
-        current_filter = st.session_state.advanced_filters.get(column, {})
+        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(column, {})
         current_operator = current_filter.get('operator', 'between')
         current_value1 = current_filter.get('value1', min_val)
         current_value2 = current_filter.get('value2', max_val)
@@ -176,7 +176,7 @@ class AdvancedFilterManager:
         translated_name = translations.translate_column(column, self.lang_code)
         
         # Get current filter values
-        current_filter = st.session_state.advanced_filters.get(column, {})
+        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(column, {})
         current_values = current_filter.get('values', [])
         current_exclude = current_filter.get('exclude', False)
         
@@ -207,15 +207,15 @@ class AdvancedFilterManager:
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply all active filters to the dataframe."""
         filtered_df = df.copy()
-        filter_logic = st.session_state.filter_logic
+        filter_logic = st.session_state[config.SessionKeys.FILTER_LOGIC]
         
-        if not st.session_state.advanced_filters:
+        if not st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
             return filtered_df
         
         # For AND logic, we apply filters sequentially
         # For OR logic, we collect all masks and combine them
         if filter_logic == "AND":
-            for column, filter_config in st.session_state.advanced_filters.items():
+            for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
                 if column not in df.columns:
                     continue
                 
@@ -290,12 +290,12 @@ class AdvancedFilterManager:
                     filtered_df = filtered_df[mask]
         
         else:  # OR logic
-            if len(st.session_state.advanced_filters) == 0:
+            if len(st.session_state[config.SessionKeys.ADVANCED_FILTERS]) == 0:
                 return filtered_df
             
             combined_mask = pd.Series([False] * len(df), index=df.index)
             
-            for column, filter_config in st.session_state.advanced_filters.items():
+            for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
                 if column not in df.columns:
                     continue
                 
@@ -362,18 +362,18 @@ class AdvancedFilterManager:
             filter_logic = st.radio(
                 translations.get_text("filter_logic_help", lang_code=self.lang_code),
                 options=["AND", "OR"],
-                index=0 if st.session_state.filter_logic == "AND" else 1,
+                index=0 if st.session_state[config.SessionKeys.FILTER_LOGIC] == "AND" else 1,
                 horizontal=True,
                 key="filter_logic_radio"
             )
-            st.session_state.filter_logic = filter_logic
+            st.session_state[config.SessionKeys.FILTER_LOGIC] = filter_logic
             
             # Active filters management
             # Clear all button taking full width
             if st.button(translations.get_text("clear_all_filters", lang_code=self.lang_code), 
                        width='stretch', key="clear_filters"):
-                st.session_state.advanced_filters = {}
-                st.session_state.active_filters_count = 0
+                st.session_state[config.SessionKeys.ADVANCED_FILTERS] = {}
+                st.session_state[config.SessionKeys.ACTIVE_FILTERS_COUNT] = 0
                 st.rerun()
             
             # Filter creation section
@@ -403,14 +403,14 @@ class AdvancedFilterManager:
                             if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
                                        key="add_numeric_filter", width='stretch'):
                                 if filter_result:
-                                    st.session_state.advanced_filters[selected_numeric_col] = filter_result
+                                    st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_numeric_col] = filter_result
                                     st.rerun()
                         
                         with col2:
                             if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
                                        key="remove_numeric_filter", width='stretch'):
-                                if selected_numeric_col in st.session_state.advanced_filters:
-                                    del st.session_state.advanced_filters[selected_numeric_col]
+                                if selected_numeric_col in st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
+                                    del st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_numeric_col]
                                     st.rerun()
                 else:
                     st.info(translations.get_text("no_numeric_columns", lang_code=self.lang_code))
@@ -433,24 +433,24 @@ class AdvancedFilterManager:
                             if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
                                        key="add_categorical_filter", width='stretch'):
                                 if filter_result:
-                                    st.session_state.advanced_filters[selected_cat_col] = filter_result
+                                    st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_cat_col] = filter_result
                                     st.rerun()
                         
                         with col2:
                             if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
                                        key="remove_categorical_filter", width='stretch'):
-                                if selected_cat_col in st.session_state.advanced_filters:
-                                    del st.session_state.advanced_filters[selected_cat_col]
+                                if selected_cat_col in st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
+                                    del st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_cat_col]
                                     st.rerun()
                 else:
                     st.info(translations.get_text("no_categorical_columns", lang_code=self.lang_code))
             
             # Show active filters summary with individual remove buttons
-            if st.session_state.advanced_filters:
+            if st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
                 st.markdown("---")
                 st.subheader("📋 " + translations.get_text("active_filters_summary", lang_code=self.lang_code))
                 
-                for column, filter_config in st.session_state.advanced_filters.items():
+                for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
                     translated_name = translations.translate_column(column, self.lang_code)
                     exclude_mode = filter_config.get("exclude", False)
                     exclude_prefix = translations.get_text("not_label", self.lang_code) + " " if exclude_mode else ""
@@ -498,7 +498,7 @@ class AdvancedFilterManager:
                     with btn_col:
                         if st.button("🗑️", key=f"remove_filter_{column}", 
                                    help=translations.get_text("remove_this_filter", self.lang_code)):
-                            del st.session_state.advanced_filters[column]
+                            del st.session_state[config.SessionKeys.ADVANCED_FILTERS][column]
                             st.rerun()
         
         # Apply filters and return filtered dataframe
