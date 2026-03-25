@@ -883,12 +883,14 @@ def main():
                 )
 
             with profile_col2:
-                # Import
+                # Import — use a counter key so the widget resets after a successful import
+                if "profile_uploader_key" not in st.session_state:
+                    st.session_state["profile_uploader_key"] = 0
                 uploaded = st.file_uploader(
                     translations.get_text("import_profile", lang_code),
                     type=["json"],
                     help=translations.get_text("import_profile_help", lang_code),
-                    key="profile_uploader",
+                    key=f"profile_uploader_{st.session_state['profile_uploader_key']}",
                 )
                 if uploaded is not None:
                     try:
@@ -899,6 +901,7 @@ def main():
                             st.session_state[config.SessionKeys.USER_CONTEXT].update(imported["context"])
                         if "boosts" in imported:
                             st.session_state[config.SessionKeys.USER_BOOSTS].update(imported["boosts"])
+                        st.session_state["profile_uploader_key"] += 1
                         st.success(translations.get_text("profile_imported", lang_code))
                         st.rerun()
                     except Exception as e:
