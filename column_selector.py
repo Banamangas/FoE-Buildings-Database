@@ -259,7 +259,7 @@ class ColumnSelector:
         
         for group_key, group_columns in filtered_columns.items():
             group_info = config.COLUMN_GROUPS[group_key]
-            group_name = translations.get_text(group_info["key"], self.lang_code)
+            group_name = translations.get_text(group_key, self.lang_code)
             
             with st.expander(f"{group_name} ({len(group_columns)} {translations.get_text('columns', self.lang_code)})", 
                            expanded=(group_key == "basic_info" or bool(search_term))):

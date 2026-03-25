@@ -280,7 +280,7 @@ def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
     ''')
 
 # --- AgGrid Configuration Builder ---
-@st.cache_resource
+@st.cache_data
 def build_grid_options(df_display: pd.DataFrame,
                          lang_code: str,
                          use_icons: bool,

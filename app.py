@@ -18,7 +18,7 @@ import column_selector
 import advanced_filters
 import data_visualizations
 import building_images
-# import qi_optimizer_test
+
 import city_analysis
 
 # Use logger from config
@@ -83,6 +83,25 @@ def get_cached_image_manager():
     return building_images.get_image_manager()
 
 
+def combine_army_with_ge_gbg(df: pd.DataFrame) -> pd.DataFrame:
+    """Combine base army stats with GE/GBG equivalents and remove the base columns."""
+    df_combined = df.copy()
+    army_mappings = {
+        'Red Attack': ['Red GE Attack', 'Red GBG Attack'],
+        'Red Defense': ['Red GE Defense', 'Red GBG Defense'],
+        'Blue Attack': ['Blue GE Attack', 'Blue GBG Attack'],
+        'Blue Defense': ['Blue GE Defense', 'Blue GBG Defense'],
+    }
+    for base_stat, target_stats in army_mappings.items():
+        if base_stat in df_combined.columns:
+            base_values = df_combined[base_stat].fillna(0)
+            for target_stat in target_stats:
+                if target_stat in df_combined.columns:
+                    df_combined[target_stat] = df_combined[target_stat].fillna(0) + base_values
+            df_combined = df_combined.drop(columns=[base_stat])
+    return df_combined
+
+
 def main():
     # --- Page Config ---
     st.set_page_config(
@@ -139,33 +158,6 @@ def main():
 
         # Use cached image manager
         cached_image_manager = get_cached_image_manager()
-
-        # --- Function to combine army stats ---
-        def combine_army_with_ge_gbg(df: pd.DataFrame) -> pd.DataFrame:
-            """Combine base army stats with GE/GBG equivalents and remove base columns."""
-            df_combined = df.copy()
-            
-            # Define the mapping of base stats to their GE/GBG equivalents
-            army_mappings = {
-                'Red Attack': ['Red GE Attack', 'Red GBG Attack'],
-                'Red Defense': ['Red GE Defense', 'Red GBG Defense'],
-                'Blue Attack': ['Blue GE Attack', 'Blue GBG Attack'],
-                'Blue Defense': ['Blue GE Defense', 'Blue GBG Defense']
-            }
-            
-            for base_stat, target_stats in army_mappings.items():
-                if base_stat in df_combined.columns:
-                    base_values = df_combined[base_stat].fillna(0)
-                    
-                    # Add base values to GE and GBG equivalents
-                    for target_stat in target_stats:
-                        if target_stat in df_combined.columns:
-                            df_combined[target_stat] = df_combined[target_stat].fillna(0) + base_values
-                    
-                    # Remove the base column
-                    df_combined = df_combined.drop(columns=[base_stat])
-            
-            return df_combined
 
     except Exception as e:
         st.error(f"Failed during initial data loading or processing: {e}")
@@ -281,7 +273,7 @@ def main():
         with st.sidebar:
             # Apply army stats combination to the dataframe used for filters if enabled
             df_for_filters = combine_army_with_ge_gbg(df_original) if combine_army_stats else df_original
-            df_filtered_by_advanced = advanced_filters.render_advanced_filters(df_for_filters, lang_code, selected_translated_era)
+            df_filtered_by_advanced = advanced_filters.render_advanced_filters(df_for_filters, lang_code)
     else:
         # No advanced filters in easy mode
         df_filtered_by_advanced = df_original
@@ -690,7 +682,7 @@ def main():
                                     inputs_to_create.append(col_name)
 
                         if inputs_to_create:  # Only show expander if there are inputs to create
-                            with st.expander(translations.get_text(group_info["key"], lang_code), expanded=False):
+                            with st.expander(translations.get_text(group_key, lang_code), expanded=False):
                                 for col_name in inputs_to_create:
                                     # Skip boost metrics as they're now integrated into base metrics
                                     if col_name in config.BOOST_TO_BASE_MAPPING:

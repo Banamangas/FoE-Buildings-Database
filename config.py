@@ -94,46 +94,36 @@ WEIGHTABLE_COLUMNS = [
 # Define column groups
 COLUMN_GROUPS = {
     "basic_info": {
-        "key": "basic_info",
         "columns": ["Event", "Weighted Efficiency", "Total Score", "size", "Nbr of squares (Avg)", "Road", "Limited", "Ally room", "Population", "Happiness", "Quantity", "Source"]
     },
     "production": {
-        "key": "production",
         "columns": ["coins", "supplies", "medals", "forge_points", "forgepoint_package", "goods",
                     "next_age_goods", "prev_age_goods", "special_goods", "guild_goods"]
     },
     "military": {
-        "key": "military",
         "columns": ["rogues", "fast_units", "heavy_units", "ranged_units", "artillery_units", "light_units", "next_age_fast_units", "next_age_heavy_units", "next_age_ranged_units", "next_age_artillery_units", "next_age_light_units"]
     },
     "base_army": {
-        "key": "base_army",
         "columns": ["Red Attack", "Red Defense", "Blue Attack", "Blue Defense"]
     },
     "gbg": {
-        "key": "gbg",
         "columns": ["Red GBG Attack", "Red GBG Defense", "Blue GBG Attack", "Blue GBG Defense"]
     },
     "ge": {
-        "key": "ge",
         "columns": ["Red GE Attack", "Red GE Defense", "Blue GE Attack", "Blue GE Defense"]
     },
     "qi": {
-        "key": "qi",
         "columns": ["Red QI Attack", "Red QI Defense", "Blue QI Attack", "Blue QI Defense",
                     "QI Coin %", "QI Coin at start", "QI Supplies %", "QI Supplies at start", "QI Goods at start", "QI Units at start", "QA per hour", "QA Capacity"]
     },
     "boosts": {
-        "key": "boosts",
         "columns": ["Coin %", "Supplies %", "FP boost", "Guild Goods Production %",
                     "Special Goods Production %", "Medal Boost", "Goods Boost"]
     },
     "consumables": {
-        "key": "consumables",
         "columns": ["finish_special_production", "finish_goods_production", "store_kit", "mass_self_aid_kit", "self_aid_kit", "one_up_kit", "renovation_kit", "finish_all_supplies"]
     },
     "other": {
-        "key": "other",
         "columns": ["Other productions"]
     }
 }

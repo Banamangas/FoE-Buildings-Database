@@ -88,7 +88,7 @@ The equivalent production is treated like a direct production value and multipli
 
 - **Session state keys** are bare strings scattered across files (tracked as tech debt in TODO #010). Centralizing them in `config.py` is a pending refactor.
 - **Column name literals** (`'name'`, `'Era'`, `'Weighted Efficiency'`, etc.) appear across multiple files (TODO #009). Treat as known debt.
-- **Error handling** is inconsistent: `data_loader.py` calls `st.stop()`, `calculations.py` returns empty DataFrame, `city_analysis.py` logs and continues. Don't add new error paths that deviate further from these patterns without a plan to unify.
+- **Error handling** is intentionally inconsistent by layer: `data_loader.py` calls `st.stop()` (fatal — no data, no app), `calculations.py` returns an empty/zeroed DataFrame (recoverable — show table without scores), `city_analysis.py` logs and continues (best-effort — partial results acceptable). Match the pattern of the surrounding code when adding new error paths; a unification refactor is tracked as TODO #019.
 - **QI Optimizer** tab is commented out (`app.py:24,647,1364`) — dead code pending evaluation (TODO #038). Do not enable without completing the module.
 - **`translations/fr/messages.json`** exists but `translations/en/messages.json` does not — asymmetry tracked as TODO #035.
 

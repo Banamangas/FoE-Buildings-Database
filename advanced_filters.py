@@ -10,10 +10,9 @@ class AdvancedFilterManager:
     
     # Predefined filter presets for common scenarios
     
-    def __init__(self, df: pd.DataFrame, lang_code: str, selected_era: str = None):
+    def __init__(self, df: pd.DataFrame, lang_code: str):
         self.df = df
         self.lang_code = lang_code
-        self.selected_era = selected_era
         self.numeric_columns = self._get_numeric_columns()
         self.categorical_columns = self._get_categorical_columns()
         
@@ -440,7 +439,7 @@ class AdvancedFilterManager:
         return self._apply_filters(self.df)
 
 
-def render_advanced_filters(df: pd.DataFrame, lang_code: str, selected_era: str = None) -> pd.DataFrame:
+def render_advanced_filters(df: pd.DataFrame, lang_code: str) -> pd.DataFrame:
     """Convenience function to render advanced filters and return filtered dataframe."""
-    filter_manager = AdvancedFilterManager(df, lang_code, selected_era)
+    filter_manager = AdvancedFilterManager(df, lang_code)
     return filter_manager.render_advanced_filters() 
