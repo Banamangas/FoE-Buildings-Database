@@ -204,154 +204,87 @@ class AdvancedFilterManager:
         
         return None
     
+    def _create_operator_mask(self, source_df: pd.DataFrame, column: str, filter_config: Dict[str, Any]) -> Optional[pd.Series]:
+        """Build a boolean mask for a single filter criterion.
+
+        Returns None if the filter config is unrecognised or has no applicable logic,
+        signalling the caller to skip this filter entirely.
+        """
+        if "operator" in filter_config:
+            op = filter_config["operator"]
+            v1 = filter_config["value1"]
+            v2 = filter_config.get("value2")
+            if op == "between":
+                return (source_df[column] >= v1) & (source_df[column] <= v2)
+            elif op == "greater_than":
+                return source_df[column] > v1
+            elif op == "greater_equal":
+                return source_df[column] >= v1
+            elif op == "less_than":
+                return source_df[column] < v1
+            elif op == "less_equal":
+                return source_df[column] <= v1
+            elif op == "equal":
+                return source_df[column] == v1
+            elif op == "not_equal":
+                return source_df[column] != v1
+            return None  # Unknown operator → skip
+
+        elif "min" in filter_config or "max" in filter_config:
+            # Legacy numeric range filter
+            mask = pd.Series([True] * len(source_df), index=source_df.index)
+            if filter_config.get("min") is not None:
+                mask &= source_df[column] >= filter_config["min"]
+            if filter_config.get("max") is not None:
+                mask &= source_df[column] <= filter_config["max"]
+            return mask
+
+        elif "values" in filter_config:
+            if filter_config["operation"] == "isin":
+                return source_df[column].isin(filter_config["values"])
+            return None  # Unknown operation → skip
+
+        elif "value" in filter_config:
+            if filter_config.get("operation") == "contains":
+                return source_df[column].astype(str).str.contains(
+                    str(filter_config["value"]), case=False, na=False
+                )
+            return source_df[column] == filter_config["value"]
+
+        return None  # Unrecognised filter config → skip
+
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply all active filters to the dataframe."""
         filtered_df = df.copy()
         filter_logic = st.session_state.filter_logic
-        
+
         if not st.session_state.advanced_filters:
             return filtered_df
-        
-        # For AND logic, we apply filters sequentially
-        # For OR logic, we collect all masks and combine them
+
         if filter_logic == "AND":
             for column, filter_config in st.session_state.advanced_filters.items():
-                if column not in df.columns:
+                if column not in filtered_df.columns:
                     continue
-                
-                exclude_mode = filter_config.get("exclude", False)
-                
-                # Handle new operator-based numeric filters
-                if "operator" in filter_config:
-                    operator = filter_config["operator"]
-                    value1 = filter_config["value1"]
-                    value2 = filter_config.get("value2")
-                    
-                    if operator == "between":
-                        mask = (filtered_df[column] >= value1) & (filtered_df[column] <= value2)
-                    elif operator == "greater_than":
-                        mask = filtered_df[column] > value1
-                    elif operator == "greater_equal":
-                        mask = filtered_df[column] >= value1
-                    elif operator == "less_than":
-                        mask = filtered_df[column] < value1
-                    elif operator == "less_equal":
-                        mask = filtered_df[column] <= value1
-                    elif operator == "equal":
-                        mask = filtered_df[column] == value1
-                    elif operator == "not_equal":
-                        mask = filtered_df[column] != value1
-                    else:
-                        mask = pd.Series([True] * len(filtered_df), index=filtered_df.index)
-                    
-                    # Apply exclusion if enabled
-                    if exclude_mode:
-                        mask = ~mask
-                    
-                    filtered_df = filtered_df[mask]
-                
-                # Handle legacy min/max filters (for backward compatibility)
-                elif "min" in filter_config or "max" in filter_config:
-                    # Numeric range filter (legacy)
-                    mask = pd.Series([True] * len(filtered_df), index=filtered_df.index)
-                    if filter_config.get("min") is not None:
-                        mask &= (filtered_df[column] >= filter_config["min"])
-                    if filter_config.get("max") is not None:
-                        mask &= (filtered_df[column] <= filter_config["max"])
-                    
-                    # Apply exclusion if enabled
-                    if exclude_mode:
-                        mask = ~mask
-                    
-                    filtered_df = filtered_df[mask]
-                
-                elif "values" in filter_config:
-                    # Categorical filter
-                    if filter_config["operation"] == "isin":
-                        mask = filtered_df[column].isin(filter_config["values"])
-                        
-                        # Apply exclusion if enabled
-                        if exclude_mode:
-                            mask = ~mask
-                        
-                        filtered_df = filtered_df[mask]
-                
-                elif "value" in filter_config:
-                    # Single value filter
-                    if filter_config.get("operation") == "contains":
-                        mask = filtered_df[column].astype(str).str.contains(str(filter_config["value"]), case=False, na=False)
-                    else:
-                        mask = (filtered_df[column] == filter_config["value"])
-                    
-                    # Apply exclusion if enabled
-                    if exclude_mode:
-                        mask = ~mask
-                    
-                    filtered_df = filtered_df[mask]
-        
+                mask = self._create_operator_mask(filtered_df, column, filter_config)
+                if mask is None:
+                    continue
+                if filter_config.get("exclude", False):
+                    mask = ~mask
+                filtered_df = filtered_df[mask]
+
         else:  # OR logic
-            if len(st.session_state.advanced_filters) == 0:
-                return filtered_df
-
             combined_mask = pd.Series([False] * len(df), index=df.index)
-
             for column, filter_config in st.session_state.advanced_filters.items():
                 if column not in df.columns:
                     continue
-
-                # Default to no-match; each branch below overwrites this
-                column_mask = pd.Series([False] * len(df), index=df.index)
-                exclude_mode = filter_config.get("exclude", False)
-
-                # Handle new operator-based numeric filters
-                if "operator" in filter_config:
-                    operator = filter_config["operator"]
-                    value1 = filter_config["value1"]
-                    value2 = filter_config.get("value2")
-                    
-                    if operator == "between":
-                        column_mask = (df[column] >= value1) & (df[column] <= value2)
-                    elif operator == "greater_than":
-                        column_mask = df[column] > value1
-                    elif operator == "greater_equal":
-                        column_mask = df[column] >= value1
-                    elif operator == "less_than":
-                        column_mask = df[column] < value1
-                    elif operator == "less_equal":
-                        column_mask = df[column] <= value1
-                    elif operator == "equal":
-                        column_mask = df[column] == value1
-                    elif operator == "not_equal":
-                        column_mask = df[column] != value1
-                    else:
-                        column_mask = pd.Series([True] * len(df), index=df.index)
-                
-                # Handle legacy min/max filters (for backward compatibility)
-                elif "min" in filter_config or "max" in filter_config:
-                    column_mask = pd.Series([True] * len(df), index=df.index)
-                    if filter_config.get("min") is not None:
-                        column_mask &= (df[column] >= filter_config["min"])
-                    if filter_config.get("max") is not None:
-                        column_mask &= (df[column] <= filter_config["max"])
-                
-                elif "values" in filter_config:
-                    if filter_config["operation"] == "isin":
-                        column_mask = df[column].isin(filter_config["values"])
-                
-                elif "value" in filter_config:
-                    if filter_config.get("operation") == "contains":
-                        column_mask = df[column].astype(str).str.contains(str(filter_config["value"]), case=False, na=False)
-                    else:
-                        column_mask = (df[column] == filter_config["value"])
-                
-                # Apply exclusion if enabled
-                if exclude_mode:
-                    column_mask = ~column_mask
-                
-                combined_mask |= column_mask
-            
+                mask = self._create_operator_mask(df, column, filter_config)
+                if mask is None:
+                    continue
+                if filter_config.get("exclude", False):
+                    mask = ~mask
+                combined_mask |= mask
             filtered_df = df[combined_mask]
-        
+
         return filtered_df
     
     def render_advanced_filters(self) -> pd.DataFrame:

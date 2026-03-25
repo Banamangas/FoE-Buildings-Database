@@ -1,5 +1,4 @@
 import logging
-import streamlit as st
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d')
@@ -18,6 +17,7 @@ APP_ICON = 'assets/icons/icon.png'
 
 def get_api_config() -> tuple:
     """Get API URL and key from Streamlit secrets."""
+    import streamlit as st
     try:
         api_url = st.secrets["foe_api"]["url"]
         api_key = st.secrets["foe_api"]["key"]

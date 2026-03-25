@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 # Import configurations and logger
-from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, logger
+from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, USER_BOOST_FIELDS, logger
 
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py
@@ -255,8 +255,6 @@ def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, floa
         user_context = {key: field_config['default'] for key, field_config in USER_CONTEXT_FIELDS.items()}
     
     if user_boosts is None:
-        # Use default boosts if none provided
-        from config import USER_BOOST_FIELDS
         user_boosts = {key: field_config['default'] for key, field_config in USER_BOOST_FIELDS.items()}
     
     return calculate_direct_weighted_efficiency(df, user_weights, user_context, user_boosts)

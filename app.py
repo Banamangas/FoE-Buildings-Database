@@ -25,6 +25,63 @@ import city_analysis
 logger = config.logger
 
 
+@st.cache_data
+def apply_translations(df: pd.DataFrame, language_code: str) -> pd.DataFrame:
+    """Translate building names, events, eras, and yes/no values in-place (cached)."""
+    df_translated = df.copy()
+
+    if 'name' in df_translated.columns:
+        df_translated['name'] = df_translated['name'].map(
+            lambda name: translations.translate_building_name(name, language_code)
+        )
+    else:
+        logger.error("'name' column missing after data load.")
+
+    if 'Event' in df_translated.columns:
+        df_translated['Event'] = df_translated['Event'].map(
+            lambda key: translations.translate_event_key(key, language_code)
+        )
+    else:
+        logger.error("'Event' column missing after data load.")
+
+    if 'Era' in df_translated.columns:
+        df_translated['Translated Era'] = df_translated['Era'].map(
+            lambda key: translations.translate_era_key(key, language_code)
+        )
+    else:
+        logger.error("'Era' column not found after data load. Cannot translate eras.")
+        df_translated['Translated Era'] = "Error"
+
+    if 'Limited' in df_translated.columns:
+        df_translated['Limited'] = df_translated['Limited'].map(
+            lambda key: translations.translate_yesno_key(key, language_code)
+        )
+    else:
+        logger.error("'Limited' column not found after data load. Cannot translate Limited.")
+        df_translated['Limited'] = "Error"
+
+    if 'Ally room' in df_translated.columns:
+        df_translated['Ally room'] = df_translated['Ally room'].map(
+            lambda key: translations.translate_yesno_key(key, language_code)
+        )
+    else:
+        logger.error("'Ally room' column not found after data load. Cannot translate Ally room.")
+        df_translated['Ally room'] = "Error"
+
+    return df_translated
+
+
+@st.cache_data
+def cached_calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """Cached wrapper around calculations.calculate_era_stats."""
+    return calculations.calculate_era_stats(df)
+
+
+@st.cache_resource
+def get_cached_image_manager():
+    """Return the singleton BuildingImageManager (cached for the process lifetime)."""
+    return building_images.get_image_manager()
+
 
 def main():
     # --- Page Config ---
@@ -73,73 +130,13 @@ def main():
         # float_cols = df_original.select_dtypes(include=['float64']).columns
         # df_original[float_cols] = df_original[float_cols].round(2)
 
-        # --- Initial Data Transformation (Translations) ---
-        @st.cache_data
-        def apply_translations(df: pd.DataFrame, language_code: str) -> pd.DataFrame:
-            df_translated = df.copy()
-            
-            # Translate building names
-            if 'name' in df_translated.columns:
-                df_translated['name'] = df_translated['name'].map(
-                    lambda name: translations.translate_building_name(name, language_code)
-                )
-            else:
-                logger.error("'name' column missing after data load.")
-
-            # Translate event keys
-            if 'Event' in df_translated.columns:
-                df_translated['Event'] = df_translated['Event'].map(
-                    lambda key: translations.translate_event_key(key, language_code)
-                )
-            else:
-                logger.error("'Event' column missing after data load.")
-
-            # Add Translated Era column
-            if 'Era' in df_translated.columns:
-                df_translated['Translated Era'] = df_translated['Era'].map(
-                    lambda key: translations.translate_era_key(key, language_code)
-                )
-            else:
-                logger.error("'Era' column not found after data load. Cannot translate eras.")
-                df_translated['Translated Era'] = "Error"
-
-            # Translate yes/no values
-            if 'Limited' in df_translated.columns:
-                df_translated['Limited'] = df_translated['Limited'].map(
-                    lambda key: translations.translate_yesno_key(key, language_code)
-                )
-            else:
-                logger.error("'Limited' column not found after data load. Cannot translate Limited.")
-                df_translated['Limited'] = "Error"
-            
-            if 'Ally room' in df_translated.columns:
-                df_translated['Ally room'] = df_translated['Ally room'].map(
-                    lambda key: translations.translate_yesno_key(key, language_code)
-                )
-            else:
-                logger.error("'Ally room' column not found after data load. Cannot translate Ally room.")
-                df_translated['Ally room'] = "Error"
-
-            return df_translated
-        
         # Apply cached translations
         df_original = apply_translations(df_original, lang_code)
-        
+
         # Save translation file (only when needed)
         with open(os.path.join(config.TRANSLATIONS_PATH, "to_be_translated_building_names.json"), "w") as f:
             json.dump(translations.TO_BE_TRANSLATED_BUILDING_NAMES, f)
 
-        # --- Pre-calculate Stats (Cached) ---
-        # Apply cache decorator here as it depends on df_original
-        @st.cache_data
-        def cached_calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
-            return calculations.calculate_era_stats(df)
-        
-        # --- Cache Building Images Manager ---
-        @st.cache_resource
-        def get_cached_image_manager():
-            return building_images.get_image_manager()
-        
         # Use cached image manager
         cached_image_manager = get_cached_image_manager()
 
