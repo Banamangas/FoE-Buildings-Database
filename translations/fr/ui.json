@@ -319,6 +319,7 @@
     "summary_statistics": "Statistiques Résumées",
     "clipboard_access_failed": "Impossible d'accéder aux données du presse-papiers",
     "advanced_error_details": "Afficher les détails d'erreur avancés",
+    "paste_json_city": "Coller le JSON Ville",
     "how_to_import_city_data": "Comment importer les données de votre ville ?",
     "how_to_import_inventory_data": "Comment importer les données de votre inventaire ?",
     "city_analysis_help_import": "1. Copiez le code ci-dessous si vous souhaitez importer votre propre ville.\n\n2. Ouvrez le jeu dans un navigateur avec FoEHelper installé.\n\n3. Appuyez sur F12 pour ouvrir la console de développement du navigateur.\n\n4. Collez le code et appuyer sur Entrée. Le résultat sera copié automatiquement.\n\n5. Revenez sur cette page et collez le résultat dans le champ ci-dessous.",
