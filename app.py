@@ -617,8 +617,9 @@ def main():
     if hide_zero_production:
         basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
         production_columns = [
-            col for col in df_viz_filtered.columns
+            col for col in selected_columns
             if col not in basic_info_columns
+            and col in df_viz_filtered.columns
             and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
         ]
 
