@@ -613,17 +613,20 @@ def main():
         df_viz_filtered = combine_army_with_ge_gbg(df_viz_filtered)
     
     # Apply zero-production filter if enabled
+    buildings_filtered_by_zero_production = 0
     if hide_zero_production:
         basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
         production_columns = [
-            col for col in df_viz_filtered.columns 
+            col for col in df_viz_filtered.columns
             if col not in basic_info_columns
             and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
         ]
-        
+
         if production_columns:
+            n_before = len(df_viz_filtered)
             mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
             df_viz_filtered = df_viz_filtered[mask]
+            buildings_filtered_by_zero_production = n_before - len(df_viz_filtered)
     
     # Initialize efficiency columns if they don't exist
     df_viz_filtered['Weighted Efficiency'] = 0.0 # Initialize
@@ -882,7 +885,6 @@ def main():
                 )
                 
                 # --- Display Filter Information ---
-                buildings_filtered_by_zero_production = 0
                 if hide_zero_production and buildings_filtered_by_zero_production > 0:
                     st.info(
                         translations.get_text("zero_production_filter_info", lang_code).format(
