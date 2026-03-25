@@ -216,7 +216,10 @@ ADDITIVE_METRICS = [
     "finish_special_production"
 ]
 
-# Multiplicative metrics
+# Maps a building's percentage-boost column to the production column(s) it amplifies.
+# Used by _apply_context_boosts to convert boost% into equivalent production units.
+# "Goods Boost" maps to a LIST because it applies to all three age tiers simultaneously;
+# all other boosts target a single column.
 BOOST_TO_BASE_MAPPING = {
     "FP boost": "forge_points",
     "Goods Boost": ["goods", "prev_age_goods", "next_age_goods"],
@@ -312,6 +315,11 @@ class SessionKeys:
     SESSION_ID = 'session_id'
 
 
+# Points awarded per unit of resource, used by city_analysis.py to rank owned buildings.
+# "forge_points" is a single scalar (same value at every era).
+# "goods" values are era-scaled: higher eras produce rarer goods worth more ranking points.
+# "special_goods" only has entries for the eras where special goods actually exist in-game
+# (Arctic Future, Oceanic Future, and the six Space Ages); all other eras have no special goods.
 RANKING_POINTS_PER_RESOURCE = {
     "forge_points": 15,
     "goods": {

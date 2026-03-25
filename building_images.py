@@ -24,9 +24,16 @@ FORGEHX_IMAGE_BASE = "https://foezz.innogamescdn.com/assets"
 def _ss_key(asset_id: str) -> str:
     """Convert a building asset ID to its _SS_ ForgeHX path key.
 
+    ForgeHX (the ForgeDB image CDN map) stores building images under a path that
+    inserts '_SS_' after the first segment of the asset ID.  The '_SS_' infix
+    stands for the "static sprite" variant used in the city view.
+
     Example: 'W_MultiAge_FOO' -> '/city/buildings/W_SS_MultiAge_FOO.png'
 
-    Raises ValueError if asset_id contains no underscore.
+    The full CDN URL is then built by appending the hash suffix looked up from
+    the ForgeHX map:  FORGEHX_IMAGE_BASE + path_key + '-' + hash + '.png'
+
+    Raises ValueError if asset_id contains no underscore (malformed ID).
     """
     if "_" not in asset_id:
         raise ValueError(f"asset_id has no underscore, cannot build _SS_ key: {asset_id!r}")

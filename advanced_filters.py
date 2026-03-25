@@ -233,7 +233,9 @@ class AdvancedFilterManager:
             return None  # Unknown operator → skip
 
         elif "min" in filter_config or "max" in filter_config:
-            # Legacy numeric range filter
+            # Legacy numeric range filter ({"min": x, "max": y} format).
+            # Kept for backward-compatibility with session-state data written before the
+            # operator-based format was introduced.  New filters use the "operator" branch above.
             mask = pd.Series([True] * len(source_df), index=source_df.index)
             if filter_config.get("min") is not None:
                 mask &= source_df[column] >= filter_config["min"]

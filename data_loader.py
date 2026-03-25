@@ -20,8 +20,9 @@ import streamlit as st
 
 from config import get_api_config, logger
 
-_API_TIMEOUT = 30  # seconds per request
-_PAGE_SIZE = 1000  # max allowed by the API
+_API_TIMEOUT = 30     # seconds per request
+_PAGE_SIZE = 1000     # max page size allowed by the API
+_CACHE_TTL = 82800   # 23 hours in seconds — data refreshes server-side once daily at ~18:00
 
 
 def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
@@ -62,7 +63,7 @@ def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any
         st.stop()
 
 
-@st.cache_data(ttl=82800)  # 23 hours — data updates at most once daily at 18:00
+@st.cache_data(ttl=_CACHE_TTL)
 def load_and_process_data() -> pd.DataFrame:
     """Fetch all buildings from the API and return a DataFrame.
 
@@ -109,7 +110,7 @@ def load_and_process_data() -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=82800)
+@st.cache_data(ttl=_CACHE_TTL)
 def get_forgehx_data() -> Dict[str, str]:
     """Fetch the ForgeHX image hash map from the API.
 

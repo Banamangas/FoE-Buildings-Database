@@ -31,7 +31,18 @@ def apply_per_square(df: pd.DataFrame, divisor_series: pd.Series) -> pd.DataFram
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py
 def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculates min and max stats per era for weightable columns."""
+    """Calculate per-era min/max statistics for all weightable columns.
+
+    Used by the heatmap renderer to normalise column values to [0, 1] within
+    each era. Results are cached by the caller (app.py:cached_calculate_era_stats).
+
+    Args:
+        df: Full building DataFrame with an 'Era' column.
+
+    Returns:
+        DataFrame with a MultiIndex on columns: (metric, 'min'|'max'), indexed by era.
+        Returns an empty DataFrame if df is empty or lacks weightable columns.
+    """
     logger.info("Calculating min/max statistics per era...")
     if df.empty or COL_ERA not in df.columns:
         logger.warning("Cannot calculate era stats: DataFrame is empty or missing 'Era' column.")
@@ -44,7 +55,8 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        # Use standard min and max aggregation
+        # observed=False retains all era categories even when some have no buildings
+        # after filtering, preventing KeyError in the heatmap normalisation lookup.
         stats = df.groupby(COL_ERA, observed=False)[cols_to_agg].agg(['min', 'max'])
 
         logger.info("Era statistics (min/max) calculation complete.")
@@ -231,12 +243,22 @@ def _apply_context_boosts(enhanced_row: pd.Series, building_row: pd.Series, true
 
 
 def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str, float], user_boosts: Dict[str, float]) -> pd.Series:
-    """
-    Apply user's city boosts and building's own boosts to the building's base production values.
+    """Apply city boosts and building self-boosts to the building's base production values.
 
-    Both user city boosts and building self-boosts are applied to the original base production values.
-    This ensures accurate calculation where a building that provides both production and boost
-    has both effects properly calculated from the base values.
+    Three-step pipeline (see CLAUDE.md § Boost Algorithm for rationale):
+      1. Compute combined boost % = user city boost + building self-boost.
+      2. Apply combined boost to the building's raw base production values.
+      3. Convert building's *percentage-boost* columns (FP boost, Goods Boost, …) into
+         equivalent production units by multiplying against the user's *true* (un-boosted)
+         base production, which is reverse-engineered from their reported daily output.
+
+    Args:
+        building_row: Single row from the building DataFrame.
+        user_context: Daily production figures entered by the user (e.g. fp_daily_production).
+        user_boosts: Current city boost percentages (e.g. current_fp_boost).
+
+    Returns:
+        A copy of building_row with production columns adjusted to reflect all boosts.
     """
     # Create a copy to avoid modifying the original
     enhanced_row = building_row.copy()

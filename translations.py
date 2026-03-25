@@ -137,8 +137,13 @@ def translate_era_key(era_key: str, lang_code: str) -> str:
     return era_key
 
 def translate_yesno_key(yesno_key: str, lang_code: str) -> str:
-    """Translate an eyesno key using pre-loaded dictionaries and ERAS_DICT fallback."""
+    """Translate a composite production-description string into the target language.
 
+    The API returns strings like "Yes collections", "No 3 days", "Military Rare".
+    Each regex substitution targets a specific token position (prefix or suffix) so
+    that only the expected token is replaced, not accidental occurrences mid-string.
+    Tokens not listed here are returned unchanged (graceful degradation).
+    """
     result = yesno_key
     result = sub('^No', get_text("No", lang_code), result)
     result = sub('^Yes', get_text("Yes", lang_code), result)
