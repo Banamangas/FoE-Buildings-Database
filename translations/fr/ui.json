@@ -335,5 +335,8 @@
     "Uncommon": "Peu commun",
     "Rare": "Rare",
     "Epic": "Epique",
-    "page_size": "Lignes par page"
+    "page_size": "Lignes par page",
+    "loading_data": "Chargement des données…",
+    "calculating_scores": "Calcul des scores d'efficacité…",
+    "analysing_city": "Analyse de la ville…"
 }

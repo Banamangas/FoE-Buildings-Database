@@ -738,27 +738,28 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                     all_building_data[unique_key]['city_quantity'] = data.get('quantity', 1)
         
         # Build merged display dataframe using merge_with_database for both sources
-        merged_parts = []
-        if st.session_state[config.SessionKeys.IMPORTED_INVENTORY]:
-            merged_inventory = merge_with_database(
-                st.session_state[config.SessionKeys.IMPORTED_INVENTORY], df_original,
-                source_type="inventory",
-                user_weights=user_weights, user_context=user_context,
-                user_boosts=user_boosts, lang_code=lang_code
-            )
-            if not merged_inventory.empty:
-                merged_parts.append(merged_inventory)
-        if st.session_state[config.SessionKeys.IMPORTED_CITY]:
-            merged_city = merge_with_database(
-                st.session_state[config.SessionKeys.IMPORTED_CITY], df_original,
-                source_type="city",
-                user_weights=user_weights, user_context=user_context,
-                user_boosts=user_boosts, lang_code=lang_code
-            )
-            if not merged_city.empty:
-                merged_parts.append(merged_city)
+        with st.spinner(translations.get_text("analysing_city", lang_code)):
+            merged_parts = []
+            if st.session_state[config.SessionKeys.IMPORTED_INVENTORY]:
+                merged_inventory = merge_with_database(
+                    st.session_state[config.SessionKeys.IMPORTED_INVENTORY], df_original,
+                    source_type="inventory",
+                    user_weights=user_weights, user_context=user_context,
+                    user_boosts=user_boosts, lang_code=lang_code
+                )
+                if not merged_inventory.empty:
+                    merged_parts.append(merged_inventory)
+            if st.session_state[config.SessionKeys.IMPORTED_CITY]:
+                merged_city = merge_with_database(
+                    st.session_state[config.SessionKeys.IMPORTED_CITY], df_original,
+                    source_type="city",
+                    user_weights=user_weights, user_context=user_context,
+                    user_boosts=user_boosts, lang_code=lang_code
+                )
+                if not merged_city.empty:
+                    merged_parts.append(merged_city)
 
-        df_imported = pd.concat(merged_parts, ignore_index=True) if merged_parts else pd.DataFrame()
+            df_imported = pd.concat(merged_parts, ignore_index=True) if merged_parts else pd.DataFrame()
 
         if not df_imported.empty:
             # Save processed data to persistence

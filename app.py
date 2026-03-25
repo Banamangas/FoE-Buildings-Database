@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 from io import BytesIO
@@ -357,7 +358,8 @@ def main():
     # load_and_process_data() fetches from the VPS API and caches for 23 hours.
     # To refresh immediately after a data update, use data_loader.clear_cache().
     try:
-        df_original = data_loader.load_and_process_data()
+        with st.spinner(translations.get_text("loading_data", lang_code)):
+            df_original = data_loader.load_and_process_data()
 
         if df_original.empty:
             st.warning("No building data loaded. The API may be updating — please try again shortly.")
@@ -850,18 +852,62 @@ def main():
                         user_boosts[field_key] = boost_value
                         st.session_state[config.SessionKeys.USER_BOOSTS][field_key] = boost_value
 
+            st.markdown("---")
+            st.subheader(translations.get_text("weight_profile", lang_code))
+
+            profile_col1, profile_col2 = st.columns(2)
+
+            with profile_col1:
+                # Export
+                profile_data = {
+                    "weights": st.session_state[config.SessionKeys.USER_WEIGHTS],
+                    "context": st.session_state[config.SessionKeys.USER_CONTEXT],
+                    "boosts": st.session_state[config.SessionKeys.USER_BOOSTS],
+                }
+                profile_json = json.dumps(profile_data, indent=2)
+                st.download_button(
+                    label=translations.get_text("export_profile", lang_code),
+                    data=profile_json,
+                    file_name="foe_weight_profile.json",
+                    mime="application/json",
+                    help=translations.get_text("export_profile_help", lang_code),
+                )
+
+            with profile_col2:
+                # Import
+                uploaded = st.file_uploader(
+                    translations.get_text("import_profile", lang_code),
+                    type=["json"],
+                    help=translations.get_text("import_profile_help", lang_code),
+                    key="profile_uploader",
+                )
+                if uploaded is not None:
+                    try:
+                        imported = json.load(uploaded)
+                        if "weights" in imported:
+                            st.session_state[config.SessionKeys.USER_WEIGHTS].update(imported["weights"])
+                        if "context" in imported:
+                            st.session_state[config.SessionKeys.USER_CONTEXT].update(imported["context"])
+                        if "boosts" in imported:
+                            st.session_state[config.SessionKeys.USER_BOOSTS].update(imported["boosts"])
+                        st.success(translations.get_text("profile_imported", lang_code))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(translations.get_text("profile_import_error", lang_code) + f": {e}")
+
         # Calculate efficiency if weights are set (after processing weights subtab)
         weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
         logger.debug(f"Main Analysis: Weights active: {weights_active}, User weights: {user_weights}")
         
         if weights_active and not df_viz_filtered.empty:
             logger.info("Applying efficiency calculations to main analysis table")
-            df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
-                df=df_viz_filtered,
-                user_weights=user_weights,
-                user_context=user_context,
-                user_boosts=user_boosts
-            )
+            with st.spinner(translations.get_text("calculating_scores", lang_code)):
+                df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
+                    df=df_viz_filtered,
+                    user_weights=user_weights,
+                    user_context=user_context,
+                    user_boosts=user_boosts
+                )
             logger.info("Main Analysis: Efficiency calculations completed successfully")
         else:
             logger.info("Main Analysis: No active weights or empty dataframe - efficiency columns remain at 0.0")

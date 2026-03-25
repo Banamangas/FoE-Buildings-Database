@@ -335,5 +335,15 @@
     "Uncommon": "Uncommon",
     "Rare": "Rare",
     "Epic": "Epic",
-    "page_size": "Rows per page"
+    "page_size": "Rows per page",
+    "loading_data": "Loading building data…",
+    "calculating_scores": "Calculating efficiency scores…",
+    "analysing_city": "Analysing city…",
+    "weight_profile": "Weight Profile",
+    "export_profile": "⬇️ Export profile",
+    "export_profile_help": "Download your current weights, context values, and boosts as a JSON file.",
+    "import_profile": "⬆️ Import profile",
+    "import_profile_help": "Upload a previously exported JSON profile to restore your settings.",
+    "profile_imported": "Profile imported successfully. Weights updated.",
+    "profile_import_error": "Failed to import profile"
 }
