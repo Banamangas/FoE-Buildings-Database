@@ -4,7 +4,33 @@ import pandas as pd
 import streamlit as st
 
 # Import configurations and logger
-from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, logger
+import config
+from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, PER_SQUARE_EXCLUDED_COLUMNS, logger
+
+# --- Per-Square Helper ---
+def apply_per_square(df: pd.DataFrame, divisor_series: pd.Series) -> pd.DataFrame:
+    """Divide all numeric, non-excluded columns by the per-square divisor.
+
+    Args:
+        df: DataFrame to modify in-place (copy first if needed).
+        divisor_series: Series of square counts, already reindexed to df's index
+                        and with zeros/NA replaced by 1.
+
+    Returns:
+        The modified DataFrame (same object).
+    """
+    numeric_cols = [
+        col for col in df.columns
+        if col not in PER_SQUARE_EXCLUDED_COLUMNS
+        and pd.api.types.is_numeric_dtype(df[col])
+    ]
+    for col in numeric_cols:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = (df[col] / divisor_series).round(8)
+        else:
+            logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
+    return df
+
 
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py

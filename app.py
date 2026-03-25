@@ -804,22 +804,8 @@ def main():
 
                 # --- Apply "Per Square" Calculation ---
                 if show_per_square and 'Nbr of squares (Avg)' in df_viz_filtered.columns:
-                    numeric_cols = [
-                        col for col in df_display.columns
-                        if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                        and pd.api.types.is_numeric_dtype(df_display[col])
-                    ]
-                    # Use divisor from the filtered df *before* potential division
-                    divisor_col = df_viz_filtered.loc[df_display.index, 'Nbr of squares (Avg)']
-                    divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
-
-                    for col in numeric_cols:
-                        if col in df_display:
-                            # Ensure column is numeric before dividing
-                            if pd.api.types.is_numeric_dtype(df_display[col]):
-                                df_display[col] = (df_display[col] / divisor_col).round(8)
-                            else:
-                                logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
+                    divisor_col = df_viz_filtered['Nbr of squares (Avg)'].reindex(df_display.index, fill_value=1).astype(float).replace(0, 1)
+                    df_display = calculations.apply_per_square(df_display, divisor_col)
 
                 # --- Configure and Display AgGrid ---
                 eff_min = df_display['Weighted Efficiency'].min() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
@@ -1381,20 +1367,8 @@ def main():
         # Apply "Per Square" Calculation to visualization data if enabled
         df_viz_display = df_viz_filtered.copy()
         if show_per_square and 'Nbr of squares (Avg)' in df_viz_display.columns and not df_viz_display.empty:
-            numeric_cols = [
-                col for col in df_viz_display.columns
-                if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                and pd.api.types.is_numeric_dtype(df_viz_display[col])
-            ]
-            # Use divisor from the filtered df
-            divisor_col = df_viz_display['Nbr of squares (Avg)']
-            divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
-
-            for col in numeric_cols:
-                if col in df_viz_display:
-                    # Ensure column is numeric before dividing
-                    if pd.api.types.is_numeric_dtype(df_viz_display[col]):
-                        df_viz_display[col] = (df_viz_display[col] / divisor_col).round(8)
+            divisor_col = df_viz_display['Nbr of squares (Avg)'].replace([0, pd.NA], 1).astype(float)
+            df_viz_display = calculations.apply_per_square(df_viz_display, divisor_col)
         
         # Render the visualizations
         data_visualizations.render_data_visualizations(df_viz_display, lang_code, show_per_square, combine_army_stats)
