@@ -762,6 +762,21 @@ def main():
 
         # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
         if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 1:
+            # Apply any pending profile import BEFORE widgets are instantiated.
+            # We cannot set widget state keys after a widget is rendered, so the import
+            # block stores data here and we apply it on the next rerun at this point.
+            _pending = st.session_state.pop("_pending_profile_import", None)
+            if _pending is not None:
+                for k, v in _pending.get("weights", {}).items():
+                    st.session_state[config.SessionKeys.USER_WEIGHTS][k] = float(v)
+                    st.session_state[f"weight_{k}"] = float(v)
+                for k, v in _pending.get("context", {}).items():
+                    st.session_state[config.SessionKeys.USER_CONTEXT][k] = float(v)
+                    st.session_state[f"context_{k}"] = float(v)
+                for k, v in _pending.get("boosts", {}).items():
+                    st.session_state[config.SessionKeys.USER_BOOSTS][k] = float(v)
+                    st.session_state[f"boost_{k}"] = float(v)
+
             # --- Weighting Inputs ---
             st.header(translations.get_text("efficiency_weights", lang_code))
             st.markdown(translations.get_text("efficiency_help_direct", lang_code))
@@ -895,18 +910,9 @@ def main():
                 if uploaded is not None:
                     try:
                         imported = json.load(uploaded)
-                        # Update both the session-state dicts AND the individual widget keys.
-                        # Streamlit uses st.session_state[key] as the authoritative value for
-                        # widgets with a key= argument, so the dict update alone is not enough.
-                        for k, v in imported.get("weights", {}).items():
-                            st.session_state[config.SessionKeys.USER_WEIGHTS][k] = float(v)
-                            st.session_state[f"weight_{k}"] = float(v)
-                        for k, v in imported.get("context", {}).items():
-                            st.session_state[config.SessionKeys.USER_CONTEXT][k] = float(v)
-                            st.session_state[f"context_{k}"] = float(v)
-                        for k, v in imported.get("boosts", {}).items():
-                            st.session_state[config.SessionKeys.USER_BOOSTS][k] = float(v)
-                            st.session_state[f"boost_{k}"] = float(v)
+                        # Stage the import — widget keys cannot be set after instantiation,
+                        # so store here and apply at the top of the subtab on the next rerun.
+                        st.session_state["_pending_profile_import"] = imported
                         st.session_state["profile_uploader_key"] += 1
                         st.rerun()
                     except Exception as e:
