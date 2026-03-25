@@ -24,12 +24,17 @@ class AdvancedFilterManager:
         if config.SessionKeys.ACTIVE_FILTERS_COUNT not in st.session_state:
             st.session_state[config.SessionKeys.ACTIVE_FILTERS_COUNT] = 0
     
+    def _get_visible_columns(self) -> set:
+        """Return the set of all columns visible in any column group."""
+        visible = set()
+        for group_info in config.COLUMN_GROUPS.values():
+            visible.update(group_info["columns"])
+        return visible
+
     def _get_numeric_columns(self) -> List[str]:
         """Get list of numeric columns suitable for range filtering."""
         # Get all columns that are defined in COLUMN_GROUPS (user-visible columns)
-        visible_columns = set()
-        for group_info in config.COLUMN_GROUPS.values():
-            visible_columns.update(group_info["columns"])
+        visible_columns = self._get_visible_columns()
         
         numeric_cols = []
         for col in self.df.columns:
@@ -43,9 +48,7 @@ class AdvancedFilterManager:
     def _get_categorical_columns(self) -> List[str]:
         """Get list of categorical columns suitable for selection filters."""
         # Get all columns that are defined in COLUMN_GROUPS (user-visible columns)
-        visible_columns = set()
-        for group_info in config.COLUMN_GROUPS.values():
-            visible_columns.update(group_info["columns"])
+        visible_columns = self._get_visible_columns()
         
         categorical_cols = []
         for col in self.df.columns:
