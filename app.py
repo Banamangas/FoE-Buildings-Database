@@ -895,14 +895,19 @@ def main():
                 if uploaded is not None:
                     try:
                         imported = json.load(uploaded)
-                        if "weights" in imported:
-                            st.session_state[config.SessionKeys.USER_WEIGHTS].update(imported["weights"])
-                        if "context" in imported:
-                            st.session_state[config.SessionKeys.USER_CONTEXT].update(imported["context"])
-                        if "boosts" in imported:
-                            st.session_state[config.SessionKeys.USER_BOOSTS].update(imported["boosts"])
+                        # Update both the session-state dicts AND the individual widget keys.
+                        # Streamlit uses st.session_state[key] as the authoritative value for
+                        # widgets with a key= argument, so the dict update alone is not enough.
+                        for k, v in imported.get("weights", {}).items():
+                            st.session_state[config.SessionKeys.USER_WEIGHTS][k] = float(v)
+                            st.session_state[f"weight_{k}"] = float(v)
+                        for k, v in imported.get("context", {}).items():
+                            st.session_state[config.SessionKeys.USER_CONTEXT][k] = float(v)
+                            st.session_state[f"context_{k}"] = float(v)
+                        for k, v in imported.get("boosts", {}).items():
+                            st.session_state[config.SessionKeys.USER_BOOSTS][k] = float(v)
+                            st.session_state[f"boost_{k}"] = float(v)
                         st.session_state["profile_uploader_key"] += 1
-                        st.success(translations.get_text("profile_imported", lang_code))
                         st.rerun()
                     except Exception as e:
                         st.error(translations.get_text("profile_import_error", lang_code) + f": {e}")
