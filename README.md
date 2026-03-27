@@ -34,7 +34,7 @@ Building data is served from a private VPS REST API (not local files). Without v
 - Scores update live — return to Home to see Weighted Efficiency and Total Score columns
 
 ### City Analysis Tab
-- Import your inventory and city layout from ForgeDB (JSON paste)
+- Import your inventory and city layout from Forge of Empires with FoE Helper installed (TSV paste)
 - Ranks owned buildings by their contribution to your city's scoring
 - Era-aware: each building is evaluated at the era it was placed
 
