@@ -1,5 +1,4 @@
 import base64
-import logging
 import os
 from functools import lru_cache
 from io import BytesIO
@@ -7,12 +6,20 @@ from typing import Dict, Any
 
 import pandas as pd
 from PIL import Image
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, ColumnsAutoSizeMode
-import streamlit as st
+from st_aggrid import GridOptionsBuilder, JsCode
 
 # Import configurations and translations
-from config import ASSETS_PATH, ICON_EXCLUDED_COLUMNS, PERCENTAGE_COLUMNS, logger, COL_NAME, COL_EVENT, COL_WEIGHTED_EFFICIENCY
-from translations import translate_column # Import the specific function
+from config import (
+    ASSETS_PATH,
+    ICON_EXCLUDED_COLUMNS,
+    PERCENTAGE_COLUMNS,
+    logger,
+    COL_NAME,
+    COL_EVENT,
+    COL_WEIGHTED_EFFICIENCY,
+)
+from translations import translate_column  # Import the specific function
+
 
 # --- Icon Handling ---
 @lru_cache(maxsize=128)
@@ -20,14 +27,16 @@ def load_icon(icon_name: str) -> Image.Image:
     """Load icon from assets folder, resize, and ensure RGBA."""
     try:
         icon_name = icon_name.lower().replace(" ", "_")
-        icon_path = os.path.join(ASSETS_PATH, 'icons', f'{icon_name}.png')
+        icon_path = os.path.join(ASSETS_PATH, "icons", f"{icon_name}.png")
 
         if not os.path.exists(icon_path):
-            logger.warning(f"Icon not found: {icon_name} at path: {icon_path}") # Can be noisy
+            logger.warning(
+                f"Icon not found: {icon_name} at path: {icon_path}"
+            )  # Can be noisy
             return None
 
-        icon = Image.open(icon_path).convert('RGBA')
-        new_icon = Image.new('RGBA', (24, 24), (0, 0, 0, 0))
+        icon = Image.open(icon_path).convert("RGBA")
+        new_icon = Image.new("RGBA", (24, 24), (0, 0, 0, 0))
         scale = min(24 / icon.width, 24 / icon.height)
         new_size = (int(icon.width * scale), int(icon.height * scale))
         resized_icon = icon.resize(new_size, Image.Resampling.LANCZOS)
@@ -37,6 +46,7 @@ def load_icon(icon_name: str) -> Image.Image:
     except Exception as e:
         logger.error(f"Error loading icon {icon_name}: {str(e)}")
         return None
+
 
 @lru_cache(maxsize=128)
 def get_icon_base64(icon_name: str) -> str:
@@ -54,22 +64,26 @@ def get_icon_base64(icon_name: str) -> str:
         logger.error(f"Error converting icon {icon_name} to base64: {str(e)}")
         return None
 
+
 def get_icon_html(col_name: str, show_label: bool, label_value: str) -> str:
     """Create HTML for column header with icon."""
-    icon_name = col_name # Use original col name for lookup if needed
+    icon_name = col_name  # Use original col name for lookup if needed
     icon_base64 = get_icon_base64(icon_name)
 
     if icon_base64:
-        label = f'<span style="margin-left: 5px">{label_value}</span>' if show_label else ''
-        return f'''
+        label = (
+            f'<span style="margin-left: 5px">{label_value}</span>' if show_label else ""
+        )
+        return f"""
             <img src="data:image/png;base64,{icon_base64}"
                  style="width: 24px; height: 24px; vertical-align: middle;">{label}
-        '''
-    return label_value # Return label if icon fails
+        """
+    return label_value  # Return label if icon fails
+
 
 # --- AgGrid JsCode Definitions ---
 
-CUSTOM_HEADER_COMPONENT = JsCode('''class CustomIconHeader {
+CUSTOM_HEADER_COMPONENT = JsCode("""class CustomIconHeader {
     init(params) {
         this.params = params;
 
@@ -82,8 +96,8 @@ CUSTOM_HEADER_COMPONENT = JsCode('''class CustomIconHeader {
         this.eGui.style.alignItems = 'center';
         this.eGui.style.width = '100%';
         this.eGui.style.justifyContent = 'space-between';
-                                 
-                                 
+
+
         // Initial sort class will be updated by onSortChanged
 
 
@@ -227,9 +241,9 @@ CUSTOM_HEADER_COMPONENT = JsCode('''class CustomIconHeader {
         }
     }
 }
-''')
+""")
 
-PERCENTAGE_FORMATTER = JsCode('''
+PERCENTAGE_FORMATTER = JsCode("""
     function(params) {
         if (params.value != null && typeof params.value === 'number') {
             if (params.value !== 0) {
@@ -238,9 +252,9 @@ PERCENTAGE_FORMATTER = JsCode('''
             return '0%';
         }
         return params.value;
-    }''')
+    }""")
 
-NOPERCENTAGE_FORMATTER = JsCode('''
+NOPERCENTAGE_FORMATTER = JsCode("""
     function(params) {
         if (params.value != null) {
             if (typeof params.value === 'number') {
@@ -255,11 +269,12 @@ NOPERCENTAGE_FORMATTER = JsCode('''
             return params.value;
         }
         return 'N/A'; // Default for null/undefined values
-    }''')
+    }""")
+
 
 def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
     """Generates the JsCode for heatmap cell styling."""
-    return JsCode(f'''
+    return JsCode(f"""
         function(params) {{
             const value = params.value;
             const min = {eff_min};
@@ -279,35 +294,40 @@ def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
             return {{ 'backgroundColor': color, 'color': 'black', 'fontWeight': 'bold', 'textAlign': 'center' }};
             // Centering is now handled by defaultColDef
         }}
-    ''')
+    """)
+
 
 # --- AgGrid Configuration Builder ---
-def build_grid_options(df_display: pd.DataFrame,
-                         lang_code: str,
-                         use_icons: bool,
-                         show_labels: bool,
-                         enable_heatmap: bool,
-                         eff_min: float,
-                         eff_max: float,
-                         page_size: int = 50) -> Dict[str, Any]:
+def build_grid_options(
+    df_display: pd.DataFrame,
+    lang_code: str,
+    use_icons: bool,
+    show_labels: bool,
+    enable_heatmap: bool,
+    eff_min: float,
+    eff_max: float,
+    page_size: int = 50,
+) -> Dict[str, Any]:
     """Builds the AgGrid GridOptions dictionary."""
 
     gb = GridOptionsBuilder.from_dataframe(df_display)
-    gb.configure_selection(selection_mode='single')
+    gb.configure_selection(selection_mode="single")
     # Register custom header component
-    gb.configure_grid_options(components={'CustomIconHeader': CUSTOM_HEADER_COMPONENT})
+    gb.configure_grid_options(components={"CustomIconHeader": CUSTOM_HEADER_COMPONENT})
 
     # Generate heatmap style if enabled
-    heatmap_style = generate_heatmap_style_js(eff_min, eff_max) if enable_heatmap else None
+    heatmap_style = (
+        generate_heatmap_style_js(eff_min, eff_max) if enable_heatmap else None
+    )
 
     # Configure columns individually
     for col in df_display.columns:
         # Get translated header name
         header_name = translate_column(col, lang_code)
-        
+
         # Determine column type for filter configuration
         is_numeric = pd.api.types.is_numeric_dtype(df_display[col])
-        
+
         # Set minimum width for columns
         if col == COL_NAME:
             min_width = 200
@@ -327,7 +347,7 @@ def build_grid_options(df_display: pd.DataFrame,
             "filter": True,
             "resizable": True,
             "type": "customNumericColumn" if is_numeric else "customTextColumn",
-            "minWidth": min_width
+            "minWidth": min_width,
         }
         if max_width is not None:
             base_config["maxWidth"] = max_width
@@ -335,20 +355,20 @@ def build_grid_options(df_display: pd.DataFrame,
         # --- Apply percentage formatter ---
         if col in PERCENTAGE_COLUMNS:
             base_config["valueFormatter"] = PERCENTAGE_FORMATTER
-            base_config["filterParams"] = {'valueFormatter': PERCENTAGE_FORMATTER}
+            base_config["filterParams"] = {"valueFormatter": PERCENTAGE_FORMATTER}
         else:
             base_config["valueFormatter"] = NOPERCENTAGE_FORMATTER
-            base_config["filterParams"] = {'valueFormatter': NOPERCENTAGE_FORMATTER}
+            base_config["filterParams"] = {"valueFormatter": NOPERCENTAGE_FORMATTER}
 
         # --- Apply Heatmap Style to Weighted Efficiency ---
         if col == COL_WEIGHTED_EFFICIENCY and heatmap_style:
-             base_config["cellStyle"] = heatmap_style
+            base_config["cellStyle"] = heatmap_style
 
         # --- Tooltip Logic ---
-        base_config["tooltipValueGetter"] = JsCode(f"""
-            function(params) {{
+        base_config["tooltipValueGetter"] = JsCode("""
+            function(params) {
                 return params.colDef.headerName + ': ' + params.valueFormatted;
-            }}
+            }
         """)
 
         # --- Header Configuration (Icon / Default) ---
@@ -359,19 +379,19 @@ def build_grid_options(df_display: pd.DataFrame,
             gb.configure_column(
                 col,
                 **icon_config,
-                headerComponent='CustomIconHeader',
+                headerComponent="CustomIconHeader",
                 headerComponentParams={
-                    'headerContent': icon_html,
-                    'enableFilter': True,
-                    'enableSorting': True
+                    "headerContent": icon_html,
+                    "enableFilter": True,
+                    "enableSorting": True,
                 },
             )
         else:
-            base_config["headerComponent"] = 'CustomIconHeader'
+            base_config["headerComponent"] = "CustomIconHeader"
             base_config["headerComponentParams"] = {
-                'headerContent': header_name,
-                'enableFilter': True,
-                'enableSorting': True
+                "headerContent": header_name,
+                "enableFilter": True,
+                "enableSorting": True,
             }
             gb.configure_column(col, **base_config)
 
@@ -380,41 +400,38 @@ def build_grid_options(df_display: pd.DataFrame,
         filter=True,
         sortable=True,
         resizable=True,
-        cellStyle={'textAlign': 'center'} # Default center alignment
+        cellStyle={"textAlign": "center"},  # Default center alignment
     )
 
     # Configure pagination
     gb.configure_pagination(paginationPageSize=page_size, paginationAutoPageSize=False)
 
     grid_options = gb.build()
-    
+
     # Define custom column types
-    grid_options['columnTypes'] = {
-        'customTextColumn': {
-            'filter': 'agTextColumnFilter',
-            'filterParams': {
-                'buttons': ['reset', 'apply'],
-                'closeOnApply': True
-            }
+    grid_options["columnTypes"] = {
+        "customTextColumn": {
+            "filter": "agTextColumnFilter",
+            "filterParams": {"buttons": ["reset", "apply"], "closeOnApply": True},
         },
-        'customNumericColumn': {
-            'filter': 'agNumberColumnFilter',
-            'filterParams': {
-                'buttons': ['reset', 'apply'],
-                'closeOnApply': True
-            }
-        }
+        "customNumericColumn": {
+            "filter": "agNumberColumnFilter",
+            "filterParams": {"buttons": ["reset", "apply"], "closeOnApply": True},
+        },
     }
-    grid_options['autoSizeStrategy'] = {'type': 'fitCellContents'}
+    grid_options["autoSizeStrategy"] = {"type": "fitCellContents"}
 
     # Additional grid options outside builder
-    grid_options.update({
-        'suppressColumnVirtualisation': True,
-        'domLayout': 'normal', # Use 'normal' with explicit height for sticky headers
-        'enableCellTextSelection': False, # Enable text selection at grid level
-    })
+    grid_options.update(
+        {
+            "suppressColumnVirtualisation": True,
+            "domLayout": "normal",  # Use 'normal' with explicit height for sticky headers
+            "enableCellTextSelection": False,  # Enable text selection at grid level
+        }
+    )
 
     return grid_options
+
 
 # --- Custom CSS --- (Can also be defined here)
 CUSTOM_CSS = {
@@ -426,5 +443,5 @@ CUSTOM_CSS = {
     },
     ".ag-header-cell.ag-right-aligned-header .ag-header-cell-label": {
         "flex-direction": "row !important"
-    }
-} 
+    },
+}

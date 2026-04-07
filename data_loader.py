@@ -11,7 +11,6 @@ API credentials are read from .streamlit/secrets.toml:
     key = "foe_your_api_key_here"
 """
 
-import logging
 from typing import Dict, Any, Optional
 
 import pandas as pd
@@ -20,9 +19,11 @@ import streamlit as st
 
 from config import get_api_config, logger
 
-_API_TIMEOUT = 30     # seconds per request
-_PAGE_SIZE = 1000     # max page size allowed by the API
-_CACHE_TTL = 82800   # 23 hours in seconds — data refreshes server-side once daily at ~18:00
+_API_TIMEOUT = 30  # seconds per request
+_PAGE_SIZE = 1000  # max page size allowed by the API
+_CACHE_TTL = (
+    82800  # 23 hours in seconds — data refreshes server-side once daily at ~18:00
+)
 
 
 def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
@@ -43,7 +44,9 @@ def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any
     headers = {"X-API-Key": api_key}
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=_API_TIMEOUT)
+        response = requests.get(
+            url, headers=headers, params=params, timeout=_API_TIMEOUT
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as e:
@@ -54,7 +57,9 @@ def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any
             retry_after = e.response.headers.get("Retry-After", "unknown")
             st.warning(f"Rate limit reached. Try again in {retry_after}s.")
         elif status == 503:
-            st.error("API data not ready. The daily update may still be running — please try again shortly.")
+            st.error(
+                "API data not ready. The daily update may still be running — please try again shortly."
+            )
         else:
             st.error(f"API error {status}: {e}")
         st.stop()
@@ -90,7 +95,9 @@ def load_and_process_data() -> pd.DataFrame:
     # Fetch remaining pages
     offset = _PAGE_SIZE
     while offset < total:
-        page = _make_request("/buildings", params={"limit": _PAGE_SIZE, "offset": offset})
+        page = _make_request(
+            "/buildings", params={"limit": _PAGE_SIZE, "offset": offset}
+        )
         if not page or not page.get("buildings"):
             break
         rows.extend(page["buildings"])
@@ -101,11 +108,11 @@ def load_and_process_data() -> pd.DataFrame:
     df = pd.DataFrame(rows)
 
     # Optimise dtypes — same categories as the original BuildingAnalyzer
-    for col in ['Era', 'Limited', 'Ally room']:
+    for col in ["Era", "Limited", "Ally room"]:
         if col in df.columns:
-            df[col] = df[col].astype('category')
-    if 'Road' in df.columns:
-        df['Road'] = df['Road'].astype(bool)
+            df[col] = df[col].astype("category")
+    if "Road" in df.columns:
+        df["Road"] = df["Road"].astype(bool)
 
     return df
 
@@ -125,8 +132,11 @@ def get_forgehx_data() -> Dict[str, str]:
     if not data:
         return {}
     return {
-        k: v for k, v in data.items()
-        if k.startswith("/city/buildings/") and k.endswith(".png") and "/textures/" not in k
+        k: v
+        for k, v in data.items()
+        if k.startswith("/city/buildings/")
+        and k.endswith(".png")
+        and "/textures/" not in k
     }
 
 

@@ -8,7 +8,6 @@ Image URL format:
     https://foezz.innogamescdn.com/assets/city/buildings/W_SS_MultiAge_XXX-{hash}.png
 """
 
-import logging
 from typing import Dict, Optional
 
 import streamlit as st
@@ -36,7 +35,9 @@ def _ss_key(asset_id: str) -> str:
     Raises ValueError if asset_id contains no underscore (malformed ID).
     """
     if "_" not in asset_id:
-        raise ValueError(f"asset_id has no underscore, cannot build _SS_ key: {asset_id!r}")
+        raise ValueError(
+            f"asset_id has no underscore, cannot build _SS_ key: {asset_id!r}"
+        )
     i = asset_id.index("_")
     return f"/city/buildings/{asset_id[:i]}_SS_{asset_id[i + 1:]}.png"
 

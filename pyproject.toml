@@ -1,0 +1,31 @@
+[project]
+name = "foe-buildings-database"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "pillow>=9.0.0",
+    "plotly>=5.15.0",
+    "requests>=2.28.0",
+    "streamlit==1.55.0",
+    "streamlit-aggrid>=1.0.0",
+    "streamlit-dynamic-filters>=0.1.9",
+]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = false
+no_implicit_optional = false
+disable_error_code = ["return", "var-annotated", "misc", "return-value", "assignment", "operator", "attr-defined", "import-untyped"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.0",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.9",
+]

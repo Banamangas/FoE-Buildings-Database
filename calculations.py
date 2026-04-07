@@ -1,10 +1,20 @@
-import logging
 from typing import Dict, Optional
 import pandas as pd
-import streamlit as st
 
 # Import configurations and logger
-from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, USER_BOOST_FIELDS, PER_SQUARE_EXCLUDED_COLUMNS, logger, COL_ERA, COL_SIZE, COL_TOTAL_SCORE, COL_WEIGHTED_EFFICIENCY
+from config import (
+    WEIGHTABLE_COLUMNS,
+    ADDITIVE_METRICS,
+    BOOST_TO_BASE_MAPPING,
+    USER_CONTEXT_FIELDS,
+    USER_BOOST_FIELDS,
+    PER_SQUARE_EXCLUDED_COLUMNS,
+    logger,
+    COL_ERA,
+    COL_SIZE,
+    COL_TOTAL_SCORE,
+    COL_WEIGHTED_EFFICIENCY,
+)
 
 
 # --- Per-Square Helper ---
@@ -20,13 +30,15 @@ def apply_per_square(df: pd.DataFrame, divisor_series: pd.Series) -> pd.DataFram
         The modified DataFrame (same object).
     """
     numeric_cols = [
-        col for col in df.columns
+        col
+        for col in df.columns
         if col not in PER_SQUARE_EXCLUDED_COLUMNS
         and pd.api.types.is_numeric_dtype(df[col])
     ]
     for col in numeric_cols:
         df[col] = (df[col] / divisor_series).round(8)
     return df
+
 
 # --- Era Statistics Calculation --- (Cached in calling function)
 # @st.cache_data # Cache decorator moved to the calling function in app.py
@@ -45,25 +57,30 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
     """
     logger.info("Calculating min/max statistics per era...")
     if df.empty or COL_ERA not in df.columns:
-        logger.warning("Cannot calculate era stats: DataFrame is empty or missing 'Era' column.")
-        return pd.DataFrame() # Return empty DataFrame if no data
+        logger.warning(
+            "Cannot calculate era stats: DataFrame is empty or missing 'Era' column."
+        )
+        return pd.DataFrame()  # Return empty DataFrame if no data
 
     # Ensure weightable columns exist in the DataFrame
     cols_to_agg = [col for col in WEIGHTABLE_COLUMNS if col in df.columns]
     if not cols_to_agg:
-        logger.warning("Cannot calculate era stats: No weightable columns found in DataFrame.")
+        logger.warning(
+            "Cannot calculate era stats: No weightable columns found in DataFrame."
+        )
         return pd.DataFrame()
 
     try:
         # observed=False retains all era categories even when some have no buildings
         # after filtering, preventing KeyError in the heatmap normalisation lookup.
-        stats = df.groupby(COL_ERA, observed=False)[cols_to_agg].agg(['min', 'max'])
+        stats = df.groupby(COL_ERA, observed=False)[cols_to_agg].agg(["min", "max"])
 
         logger.info("Era statistics (min/max) calculation complete.")
         return stats
     except Exception as e:
         logger.error(f"Error calculating era statistics: {e}", exc_info=True)
-        return pd.DataFrame() # Return empty on error
+        return pd.DataFrame()  # Return empty on error
+
 
 # --- Direct Weighted Sum Calculation ---
 def _apply_multiplier_boost(base_value: float, boost_pct: float) -> float:
@@ -104,7 +121,9 @@ def _compute_combined_boosts(building_row: pd.Series, user_boosts: dict) -> dict
     }
 
 
-def _apply_production_boosts(enhanced_row: pd.Series, original_base_values: dict, combined_boosts: dict) -> pd.Series:
+def _apply_production_boosts(
+    enhanced_row: pd.Series, original_base_values: dict, combined_boosts: dict
+) -> pd.Series:
     """Apply combined boost percentages to the base production values and return the updated row."""
     # Apply FP boost
     if "forge_points" in enhanced_row:
@@ -165,39 +184,71 @@ def _compute_true_base_context(user_context: dict, user_boosts: dict) -> dict:
     # FP: true_base = current_production / (1 + current_boost/100)
     if "current_fp_boost" in user_boosts and user_boosts["current_fp_boost"] > 0:
         boost_multiplier = 1 + (user_boosts["current_fp_boost"] / 100)
-        true_base_context["fp_daily_production"] = user_context.get("fp_daily_production", 0) / boost_multiplier
+        true_base_context["fp_daily_production"] = (
+            user_context.get("fp_daily_production", 0) / boost_multiplier
+        )
     else:
-        true_base_context["fp_daily_production"] = user_context.get("fp_daily_production", 0)
+        true_base_context["fp_daily_production"] = user_context.get(
+            "fp_daily_production", 0
+        )
 
     # Goods: Calculate true base for each goods type
     if "current_goods_boost" in user_boosts and user_boosts["current_goods_boost"] > 0:
         boost_multiplier = 1 + (user_boosts["current_goods_boost"] / 100)
-        true_base_context["goods_current_production"] = user_context.get("goods_current_production", 0) / boost_multiplier
-        true_base_context["goods_previous_production"] = user_context.get("goods_previous_production", 0) / boost_multiplier
-        true_base_context["goods_next_production"] = user_context.get("goods_next_production", 0) / boost_multiplier
+        true_base_context["goods_current_production"] = (
+            user_context.get("goods_current_production", 0) / boost_multiplier
+        )
+        true_base_context["goods_previous_production"] = (
+            user_context.get("goods_previous_production", 0) / boost_multiplier
+        )
+        true_base_context["goods_next_production"] = (
+            user_context.get("goods_next_production", 0) / boost_multiplier
+        )
     else:
-        true_base_context["goods_current_production"] = user_context.get("goods_current_production", 0)
-        true_base_context["goods_previous_production"] = user_context.get("goods_previous_production", 0)
-        true_base_context["goods_next_production"] = user_context.get("goods_next_production", 0)
+        true_base_context["goods_current_production"] = user_context.get(
+            "goods_current_production", 0
+        )
+        true_base_context["goods_previous_production"] = user_context.get(
+            "goods_previous_production", 0
+        )
+        true_base_context["goods_next_production"] = user_context.get(
+            "goods_next_production", 0
+        )
 
     # Guild Goods
-    if "current_guild_goods_boost" in user_boosts and user_boosts["current_guild_goods_boost"] > 0:
+    if (
+        "current_guild_goods_boost" in user_boosts
+        and user_boosts["current_guild_goods_boost"] > 0
+    ):
         boost_multiplier = 1 + (user_boosts["current_guild_goods_boost"] / 100)
-        true_base_context["guild_goods_production"] = user_context.get("guild_goods_production", 0) / boost_multiplier
+        true_base_context["guild_goods_production"] = (
+            user_context.get("guild_goods_production", 0) / boost_multiplier
+        )
     else:
-        true_base_context["guild_goods_production"] = user_context.get("guild_goods_production", 0)
+        true_base_context["guild_goods_production"] = user_context.get(
+            "guild_goods_production", 0
+        )
 
     # Special Goods
-    if "current_special_goods_boost" in user_boosts and user_boosts["current_special_goods_boost"] > 0:
+    if (
+        "current_special_goods_boost" in user_boosts
+        and user_boosts["current_special_goods_boost"] > 0
+    ):
         boost_multiplier = 1 + (user_boosts["current_special_goods_boost"] / 100)
-        true_base_context["special_goods_production"] = user_context.get("special_goods_production", 0) / boost_multiplier
+        true_base_context["special_goods_production"] = (
+            user_context.get("special_goods_production", 0) / boost_multiplier
+        )
     else:
-        true_base_context["special_goods_production"] = user_context.get("special_goods_production", 0)
+        true_base_context["special_goods_production"] = user_context.get(
+            "special_goods_production", 0
+        )
 
     return true_base_context
 
 
-def _apply_context_boosts(enhanced_row: pd.Series, building_row: pd.Series, true_base_context: dict) -> pd.Series:
+def _apply_context_boosts(
+    enhanced_row: pd.Series, building_row: pd.Series, true_base_context: dict
+) -> pd.Series:
     """Convert the building's percentage boost columns into equivalent production units."""
     for boost_metric, base_metric_or_list in BOOST_TO_BASE_MAPPING.items():
         if boost_metric in building_row and building_row[boost_metric] > 0:
@@ -206,38 +257,61 @@ def _apply_context_boosts(enhanced_row: pd.Series, building_row: pd.Series, true
             if boost_metric == "FP boost":
                 context_key = "fp_daily_production"
                 if context_key in true_base_context:
-                    boost_equivalent = boost_percentage * true_base_context[context_key] / 100
+                    boost_equivalent = (
+                        boost_percentage * true_base_context[context_key] / 100
+                    )
                     current_base = enhanced_row.get(base_metric_or_list, 0)
                     enhanced_row[base_metric_or_list] = current_base + boost_equivalent
-                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})")
+                    logger.debug(
+                        f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})"
+                    )
 
             elif boost_metric == "Goods Boost":
                 # Goods Boost affects multiple goods types
-                context_keys = ["goods_current_production", "goods_previous_production", "goods_next_production"]
+                context_keys = [
+                    "goods_current_production",
+                    "goods_previous_production",
+                    "goods_next_production",
+                ]
                 base_metric_names = ["goods", "prev_age_goods", "next_age_goods"]
 
                 for context_key, base_metric in zip(context_keys, base_metric_names):
-                    if context_key in true_base_context and true_base_context[context_key] > 0:
-                        boost_equivalent = boost_percentage * true_base_context[context_key] / 100
+                    if (
+                        context_key in true_base_context
+                        and true_base_context[context_key] > 0
+                    ):
+                        boost_equivalent = (
+                            boost_percentage * true_base_context[context_key] / 100
+                        )
                         current_base = enhanced_row.get(base_metric, 0)
                         enhanced_row[base_metric] = current_base + boost_equivalent
-                        logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})")
+                        logger.debug(
+                            f"Applied {boost_metric} ({boost_percentage}%) to {base_metric}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})"
+                        )
 
             elif boost_metric == "Guild Goods Production %":
                 context_key = "guild_goods_production"
                 if context_key in true_base_context:
-                    boost_equivalent = boost_percentage * true_base_context[context_key] / 100
+                    boost_equivalent = (
+                        boost_percentage * true_base_context[context_key] / 100
+                    )
                     current_base = enhanced_row.get(base_metric_or_list, 0)
                     enhanced_row[base_metric_or_list] = current_base + boost_equivalent
-                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})")
+                    logger.debug(
+                        f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})"
+                    )
 
             elif boost_metric == "Special Goods Production %":
                 context_key = "special_goods_production"
                 if context_key in true_base_context:
-                    boost_equivalent = boost_percentage * true_base_context[context_key] / 100
+                    boost_equivalent = (
+                        boost_percentage * true_base_context[context_key] / 100
+                    )
                     current_base = enhanced_row.get(base_metric_or_list, 0)
                     enhanced_row[base_metric_or_list] = current_base + boost_equivalent
-                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})")
+                    logger.debug(
+                        f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f} (true base: {true_base_context[context_key]:.1f})"
+                    )
 
     return enhanced_row
 
@@ -279,14 +353,16 @@ def apply_boosts_to_base_metrics(
         "prev_age_goods": building_row.get("prev_age_goods", 0),
         "next_age_goods": building_row.get("next_age_goods", 0),
         "guild_goods": building_row.get("guild_goods", 0),
-        "special_goods": building_row.get("special_goods", 0)
+        "special_goods": building_row.get("special_goods", 0),
     }
 
     # STEP 1: Compute combined boost percentages (user city boost + building self-boost)
     combined_boosts = _compute_combined_boosts(building_row, user_boosts)
 
     # Apply combined boosts to original base values
-    enhanced_row = _apply_production_boosts(enhanced_row, original_base_values, combined_boosts)
+    enhanced_row = _apply_production_boosts(
+        enhanced_row, original_base_values, combined_boosts
+    )
 
     # STEP 2: True base production — reverse-engineer from user's boosted daily output.
     # This is the same for every building; callers in a loop should pass it pre-computed.
@@ -299,28 +375,36 @@ def apply_boosts_to_base_metrics(
 
     return enhanced_row
 
-def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], user_context: Dict[str, float], user_boosts: Optional[Dict[str, float]] = None) -> pd.DataFrame:
+
+def calculate_direct_weighted_efficiency(
+    df: pd.DataFrame,
+    user_weights: Dict[str, float],
+    user_context: Dict[str, float],
+    user_boosts: Optional[Dict[str, float]] = None,
+) -> pd.DataFrame:
     """Calculate weighted efficiency using direct weighted sum with integrated boosts."""
     logger.info(f"Calculating direct weighted efficiency for {len(df)} buildings")
-    
+
     if df.empty:
-        logger.warning("Empty dataframe provided to calculate_direct_weighted_efficiency")
+        logger.warning(
+            "Empty dataframe provided to calculate_direct_weighted_efficiency"
+        )
         return df
-    
+
     # Default empty user_boosts if not provided
     if user_boosts is None:
         user_boosts = {}
-    
+
     # Initialize columns
     df[COL_TOTAL_SCORE] = 0.0
     df[COL_WEIGHTED_EFFICIENCY] = 0.0
-    
+
     # Check if any weights are set
     any_weight_set = any(w > 0 for w in user_weights.values())
     if not any_weight_set:
         logger.info("No weights set, returning zero scores")
         return df
-    
+
     try:
         # Pre-compute once: true_base_context only depends on user inputs, not on any building row.
         true_base_context = _compute_true_base_context(user_context, user_boosts)
@@ -328,10 +412,12 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
         for idx, building_row in df.iterrows():
             # Apply boosts to base metrics first (pass pre-computed true_base_context to avoid
             # recomputing it for every building — it is the same for all rows in this call).
-            enhanced_row = apply_boosts_to_base_metrics(building_row, user_context, user_boosts, true_base_context)
-            
+            enhanced_row = apply_boosts_to_base_metrics(
+                building_row, user_context, user_boosts, true_base_context
+            )
+
             total_score = 0.0
-            
+
             # Process all additive metrics (now including boost-enhanced values)
             for metric in ADDITIVE_METRICS:
                 if metric in enhanced_row and metric in user_weights:
@@ -339,8 +425,10 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
                     if weight > 0 and pd.notna(enhanced_row[metric]):
                         contribution = enhanced_row[metric] * weight
                         total_score += contribution
-                        logger.debug(f"Building {idx}, {metric}: {enhanced_row[metric]:.1f} * {weight} = {contribution:.1f}")
-            
+                        logger.debug(
+                            f"Building {idx}, {metric}: {enhanced_row[metric]:.1f} * {weight} = {contribution:.1f}"
+                        )
+
             # Set total score
             df.at[idx, COL_TOTAL_SCORE] = round(total_score, 1)
 
@@ -355,20 +443,40 @@ def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[st
         logger.info("Direct weighted efficiency calculation complete")
 
     except Exception as e:
-        logger.error(f"Error in direct weighted efficiency calculation: {e}", exc_info=True)
+        logger.error(
+            f"Error in direct weighted efficiency calculation: {e}", exc_info=True
+        )
         df[COL_TOTAL_SCORE] = 0.0
         df[COL_WEIGHTED_EFFICIENCY] = 0.0
-    
+
     return df
 
+
 # --- Legacy function for backward compatibility ---
-def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], era_stats_df: pd.DataFrame, df_original: pd.DataFrame, selected_translated_era: str, lang_code: str, user_context: Optional[Dict[str, float]] = None, user_boosts: Optional[Dict[str, float]] = None) -> pd.DataFrame:
+def calculate_weighted_efficiency(
+    df: pd.DataFrame,
+    user_weights: Dict[str, float],
+    era_stats_df: pd.DataFrame,
+    df_original: pd.DataFrame,
+    selected_translated_era: str,
+    lang_code: str,
+    user_context: Optional[Dict[str, float]] = None,
+    user_boosts: Optional[Dict[str, float]] = None,
+) -> pd.DataFrame:
     """Legacy wrapper that calls the new direct weighted efficiency calculation."""
     if user_context is None:
         # Use default context if none provided
-        user_context = {key: field_config['default'] for key, field_config in USER_CONTEXT_FIELDS.items()}
-    
+        user_context = {
+            key: field_config["default"]
+            for key, field_config in USER_CONTEXT_FIELDS.items()
+        }
+
     if user_boosts is None:
-        user_boosts = {key: field_config['default'] for key, field_config in USER_BOOST_FIELDS.items()}
-    
-    return calculate_direct_weighted_efficiency(df, user_weights, user_context, user_boosts)
+        user_boosts = {
+            key: field_config["default"]
+            for key, field_config in USER_BOOST_FIELDS.items()
+        }
+
+    return calculate_direct_weighted_efficiency(
+        df, user_weights, user_context, user_boosts
+    )

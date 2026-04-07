@@ -1,21 +1,21 @@
 import streamlit as st
 import pandas as pd
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Optional
 import config
 import translations
 
 
 class AdvancedFilterManager:
     """Advanced filtering system with range sliders, compound filters, presets, and exclusion modes."""
-    
+
     # Predefined filter presets for common scenarios
-    
+
     def __init__(self, df: pd.DataFrame, lang_code: str):
         self.df = df
         self.lang_code = lang_code
         self.numeric_columns = self._get_numeric_columns()
         self.categorical_columns = self._get_categorical_columns()
-        
+
         # Initialize session state for filters
         if config.SessionKeys.ADVANCED_FILTERS not in st.session_state:
             st.session_state[config.SessionKeys.ADVANCED_FILTERS] = {}
@@ -23,7 +23,7 @@ class AdvancedFilterManager:
             st.session_state[config.SessionKeys.FILTER_LOGIC] = "AND"
         if config.SessionKeys.ACTIVE_FILTERS_COUNT not in st.session_state:
             st.session_state[config.SessionKeys.ACTIVE_FILTERS_COUNT] = 0
-    
+
     def _get_visible_columns(self) -> set:
         """Return the set of all columns visible in any column group."""
         visible = set()
@@ -35,21 +35,26 @@ class AdvancedFilterManager:
         """Get list of numeric columns suitable for range filtering."""
         # Get all columns that are defined in COLUMN_GROUPS (user-visible columns)
         visible_columns = self._get_visible_columns()
-        
+
         numeric_cols = []
         for col in self.df.columns:
             if pd.api.types.is_numeric_dtype(self.df[col]):
                 # Only include columns that are in the visible column groups
                 # and exclude columns that shouldn't have range filters
-                if col in visible_columns and col not in [config.COL_NAME, config.COL_ERA, config.COL_EVENT, config.COL_TRANSLATED_ERA]:
+                if col in visible_columns and col not in [
+                    config.COL_NAME,
+                    config.COL_ERA,
+                    config.COL_EVENT,
+                    config.COL_TRANSLATED_ERA,
+                ]:
                     numeric_cols.append(col)
         return sorted(numeric_cols)
-    
+
     def _get_categorical_columns(self) -> List[str]:
         """Get list of categorical columns suitable for selection filters."""
         # Get all columns that are defined in COLUMN_GROUPS (user-visible columns)
         visible_columns = self._get_visible_columns()
-        
+
         categorical_cols = []
         for col in self.df.columns:
             if not pd.api.types.is_numeric_dtype(self.df[col]):
@@ -58,66 +63,80 @@ class AdvancedFilterManager:
                 if col in visible_columns and col not in [config.COL_NAME]:
                     categorical_cols.append(col)
         return sorted(categorical_cols)
-    
+
     def _create_range_filter(self, column: str) -> Optional[Dict[str, Any]]:
         """Create a range filter widget for a numeric column with operator selection."""
         if column not in self.df.columns:
             return None
-        
+
         col_data = self.df[column].dropna()
         if col_data.empty:
             return None
-        
+
         min_val = float(col_data.min())
         max_val = float(col_data.max())
-        
+
         if min_val == max_val:
             return None  # No range to filter
-        
+
         translated_name = translations.translate_column(column, self.lang_code)
-        
+
         # Get current filter values
-        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(column, {})
-        current_operator = current_filter.get('operator', 'between')
-        current_value1 = current_filter.get('value1', min_val)
-        current_value2 = current_filter.get('value2', max_val)
-        current_exclude = current_filter.get('exclude', False)
-        
+        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(
+            column, {}
+        )
+        current_operator = current_filter.get("operator", "between")
+        current_value1 = current_filter.get("value1", min_val)
+        current_value2 = current_filter.get("value2", max_val)
+        current_exclude = current_filter.get("exclude", False)
+
         # Ensure current values are within bounds
-        current_value1 = max(min_val, min(max_val, current_value1 if current_value1 is not None else min_val))
-        current_value2 = max(min_val, min(max_val, current_value2 if current_value2 is not None else max_val))
-        
+        current_value1 = max(
+            min_val,
+            min(max_val, current_value1 if current_value1 is not None else min_val),
+        )
+        current_value2 = max(
+            min_val,
+            min(max_val, current_value2 if current_value2 is not None else max_val),
+        )
+
         # Exclusion toggle
         exclude_mode = st.checkbox(
             translations.get_text("exclude_mode", self.lang_code),
             value=current_exclude,
             help=translations.get_text("exclude_mode_help", self.lang_code),
-            key=f"exclude_numeric_{column}"
+            key=f"exclude_numeric_{column}",
         )
-        
+
         # Operator selection
         operator_options = {
-            'between': translations.get_text("operator_between", self.lang_code),
-            'greater_than': translations.get_text("operator_greater_than", self.lang_code),
-            'greater_equal': translations.get_text("operator_greater_equal", self.lang_code),
-            'less_than': translations.get_text("operator_less_than", self.lang_code),
-            'less_equal': translations.get_text("operator_less_equal", self.lang_code),
-            'equal': translations.get_text("operator_equal", self.lang_code),
-            'not_equal': translations.get_text("operator_not_equal", self.lang_code)
+            "between": translations.get_text("operator_between", self.lang_code),
+            "greater_than": translations.get_text(
+                "operator_greater_than", self.lang_code
+            ),
+            "greater_equal": translations.get_text(
+                "operator_greater_equal", self.lang_code
+            ),
+            "less_than": translations.get_text("operator_less_than", self.lang_code),
+            "less_equal": translations.get_text("operator_less_equal", self.lang_code),
+            "equal": translations.get_text("operator_equal", self.lang_code),
+            "not_equal": translations.get_text("operator_not_equal", self.lang_code),
         }
-        
+
         selected_operator = st.selectbox(
             translations.get_text("filter_operator", self.lang_code),
             options=list(operator_options.keys()),
             format_func=lambda x: operator_options[x],
-            index=list(operator_options.keys()).index(current_operator) if current_operator in operator_options else 0,
-            key=f"operator_{column}"
+            index=list(operator_options.keys()).index(current_operator)
+            if current_operator in operator_options
+            else 0,
+            key=f"operator_{column}",
         )
-        
+
         # Value inputs based on operator
         step_size = 1.0 if max_val - min_val > 100 else 0.1
-        
-        if selected_operator == 'between':
+
+        if selected_operator == "between":
             col1, col2 = st.columns(2)
             with col1:
                 value1 = st.number_input(
@@ -126,7 +145,7 @@ class AdvancedFilterManager:
                     max_value=max_val,
                     value=current_value1,
                     step=step_size,
-                    key=f"filter_value1_{column}"
+                    key=f"filter_value1_{column}",
                 )
             with col2:
                 value2 = st.number_input(
@@ -135,20 +154,20 @@ class AdvancedFilterManager:
                     max_value=max_val,
                     value=current_value2,
                     step=step_size,
-                    key=f"filter_value2_{column}"
+                    key=f"filter_value2_{column}",
                 )
-            
+
             # Ensure min <= max
             if value1 > value2:
                 value1, value2 = value2, value1
-            
+
             return {
                 "operator": selected_operator,
                 "value1": value1,
                 "value2": value2,
-                "exclude": exclude_mode
+                "exclude": exclude_mode,
             }
-        
+
         else:
             # Single value operators
             value1 = st.number_input(
@@ -157,56 +176,66 @@ class AdvancedFilterManager:
                 max_value=max_val,
                 value=current_value1,
                 step=step_size,
-                key=f"filter_single_value_{column}"
+                key=f"filter_single_value_{column}",
             )
-            
+
             return {
                 "operator": selected_operator,
                 "value1": value1,
-                "exclude": exclude_mode
+                "exclude": exclude_mode,
             }
-    
+
     def _create_categorical_filter(self, column: str) -> Optional[Dict[str, Any]]:
         """Create a categorical filter widget."""
         if column not in self.df.columns:
             return None
-        
+
         unique_values = sorted([str(val) for val in self.df[column].dropna().unique()])
         if len(unique_values) <= 1:
             return None
-        
+
         translated_name = translations.translate_column(column, self.lang_code)
-        
+
         # Get current filter values
-        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(column, {})
-        current_values = current_filter.get('values', [])
-        current_exclude = current_filter.get('exclude', False)
-        
+        current_filter = st.session_state[config.SessionKeys.ADVANCED_FILTERS].get(
+            column, {}
+        )
+        current_values = current_filter.get("values", [])
+        current_exclude = current_filter.get("exclude", False)
+
         # Ensure current values exist in the data
         current_values = [val for val in current_values if val in unique_values]
-        
+
         # Exclusion toggle
         exclude_mode = st.checkbox(
             translations.get_text("exclude_mode", self.lang_code),
             value=current_exclude,
             help=translations.get_text("exclude_mode_help", self.lang_code),
-            key=f"exclude_categorical_{column}"
+            key=f"exclude_categorical_{column}",
         )
-        
+
         selected_values = st.multiselect(
-            translations.get_text('filter_column_label', self.lang_code).format(name=translated_name),
+            translations.get_text("filter_column_label", self.lang_code).format(
+                name=translated_name
+            ),
             options=unique_values,
             default=current_values,
             placeholder=translations.get_text("choose_an_option", self.lang_code),
-            key=f"filter_cat_{column}"
+            key=f"filter_cat_{column}",
         )
-        
+
         if selected_values and len(selected_values) < len(unique_values):
-            return {"values": selected_values, "operation": "isin", "exclude": exclude_mode}
-        
+            return {
+                "values": selected_values,
+                "operation": "isin",
+                "exclude": exclude_mode,
+            }
+
         return None
-    
-    def _create_operator_mask(self, source_df: pd.DataFrame, column: str, filter_config: Dict[str, Any]) -> Optional[pd.Series]:
+
+    def _create_operator_mask(
+        self, source_df: pd.DataFrame, column: str, filter_config: Dict[str, Any]
+    ) -> Optional[pd.Series]:
         """Build a boolean mask for a single filter criterion.
 
         Returns None if the filter config is unrecognised or has no applicable logic,
@@ -250,8 +279,10 @@ class AdvancedFilterManager:
 
         elif "value" in filter_config:
             if filter_config.get("operation") == "contains":
-                return source_df[column].astype(str).str.contains(
-                    str(filter_config["value"]), case=False, na=False
+                return (
+                    source_df[column]
+                    .astype(str)
+                    .str.contains(str(filter_config["value"]), case=False, na=False)
                 )
             return source_df[column] == filter_config["value"]
 
@@ -266,7 +297,9 @@ class AdvancedFilterManager:
             return filtered_df
 
         if filter_logic == "AND":
-            for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
+            for column, filter_config in st.session_state[
+                config.SessionKeys.ADVANCED_FILTERS
+            ].items():
                 if column not in filtered_df.columns:
                     continue
                 mask = self._create_operator_mask(filtered_df, column, filter_config)
@@ -278,7 +311,9 @@ class AdvancedFilterManager:
 
         else:  # OR logic
             combined_mask = pd.Series([False] * len(df), index=df.index)
-            for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
+            for column, filter_config in st.session_state[
+                config.SessionKeys.ADVANCED_FILTERS
+            ].items():
                 if column not in df.columns:
                     continue
                 mask = self._create_operator_mask(df, column, filter_config)
@@ -290,154 +325,275 @@ class AdvancedFilterManager:
             filtered_df = df[combined_mask]
 
         return filtered_df
-    
+
     def render_advanced_filters(self) -> pd.DataFrame:
         """Render the advanced filtering UI and return filtered dataframe."""
-        
-        with st.expander("🔧 " + translations.get_text("advanced_filters", lang_code=self.lang_code), expanded=False):
-            
+
+        with st.expander(
+            "🔧 " + translations.get_text("advanced_filters", lang_code=self.lang_code),
+            expanded=False,
+        ):
             # Filter logic selection
-            st.subheader("🔗 " + translations.get_text("filter_logic", lang_code=self.lang_code))
+            st.subheader(
+                "🔗 " + translations.get_text("filter_logic", lang_code=self.lang_code)
+            )
             filter_logic = st.radio(
                 translations.get_text("filter_logic_help", lang_code=self.lang_code),
                 options=["AND", "OR"],
-                index=0 if st.session_state[config.SessionKeys.FILTER_LOGIC] == "AND" else 1,
+                index=0
+                if st.session_state[config.SessionKeys.FILTER_LOGIC] == "AND"
+                else 1,
                 horizontal=True,
-                key="filter_logic_radio"
+                key="filter_logic_radio",
             )
             st.session_state[config.SessionKeys.FILTER_LOGIC] = filter_logic
-            
+
             # Active filters management
             # Clear all button taking full width
-            if st.button(translations.get_text("clear_all_filters", lang_code=self.lang_code), 
-                       width='stretch', key="clear_filters"):
+            if st.button(
+                translations.get_text("clear_all_filters", lang_code=self.lang_code),
+                width="stretch",
+                key="clear_filters",
+            ):
                 st.session_state[config.SessionKeys.ADVANCED_FILTERS] = {}
                 st.session_state[config.SessionKeys.ACTIVE_FILTERS_COUNT] = 0
                 st.rerun()
-            
+
             # Filter creation section
-            st.subheader("🎛️ " + translations.get_text("create_filters", lang_code=self.lang_code))
-            
+            st.subheader(
+                "🎛️ " + translations.get_text("create_filters", lang_code=self.lang_code)
+            )
+
             # Tabs for different filter types
-            filter_tabs = st.tabs([
-                translations.get_text("numeric_filters", lang_code=self.lang_code),
-                translations.get_text("categorical_filters", lang_code=self.lang_code)
-            ])
-            
+            filter_tabs = st.tabs(
+                [
+                    translations.get_text("numeric_filters", lang_code=self.lang_code),
+                    translations.get_text(
+                        "categorical_filters", lang_code=self.lang_code
+                    ),
+                ]
+            )
+
             # Numeric filters tab
             with filter_tabs[0]:
                 if self.numeric_columns:
                     selected_numeric_col = st.selectbox(
-                        translations.get_text("select_numeric_column", lang_code=self.lang_code),
+                        translations.get_text(
+                            "select_numeric_column", lang_code=self.lang_code
+                        ),
                         options=[""] + self.numeric_columns,
-                        format_func=lambda x: translations.translate_column(x, self.lang_code) if x else translations.get_text("select_column", lang_code=self.lang_code),
-                        key="numeric_filter_selector"
+                        format_func=lambda x: translations.translate_column(
+                            x, self.lang_code
+                        )
+                        if x
+                        else translations.get_text(
+                            "select_column", lang_code=self.lang_code
+                        ),
+                        key="numeric_filter_selector",
                     )
-                    
+
                     if selected_numeric_col:
                         filter_result = self._create_range_filter(selected_numeric_col)
-                        
+
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
-                                       key="add_numeric_filter", width='stretch'):
+                            if st.button(
+                                translations.get_text(
+                                    "add_filter", lang_code=self.lang_code
+                                ),
+                                key="add_numeric_filter",
+                                width="stretch",
+                            ):
                                 if filter_result:
-                                    st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_numeric_col] = filter_result
+                                    st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ][selected_numeric_col] = filter_result
                                     st.rerun()
-                        
+
                         with col2:
-                            if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
-                                       key="remove_numeric_filter", width='stretch'):
-                                if selected_numeric_col in st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
-                                    del st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_numeric_col]
+                            if st.button(
+                                translations.get_text(
+                                    "remove_filter", lang_code=self.lang_code
+                                ),
+                                key="remove_numeric_filter",
+                                width="stretch",
+                            ):
+                                if (
+                                    selected_numeric_col
+                                    in st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ]
+                                ):
+                                    del st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ][selected_numeric_col]
                                     st.rerun()
                 else:
-                    st.info(translations.get_text("no_numeric_columns", lang_code=self.lang_code))
-            
+                    st.info(
+                        translations.get_text(
+                            "no_numeric_columns", lang_code=self.lang_code
+                        )
+                    )
+
             # Categorical filters tab
             with filter_tabs[1]:
                 if self.categorical_columns:
                     selected_cat_col = st.selectbox(
-                        translations.get_text("select_categorical_column", lang_code=self.lang_code),
+                        translations.get_text(
+                            "select_categorical_column", lang_code=self.lang_code
+                        ),
                         options=[""] + self.categorical_columns,
-                        format_func=lambda x: translations.translate_column(x, self.lang_code) if x else translations.get_text("select_column", lang_code=self.lang_code),
-                        key="categorical_filter_selector"
+                        format_func=lambda x: translations.translate_column(
+                            x, self.lang_code
+                        )
+                        if x
+                        else translations.get_text(
+                            "select_column", lang_code=self.lang_code
+                        ),
+                        key="categorical_filter_selector",
                     )
-                    
+
                     if selected_cat_col:
-                        filter_result = self._create_categorical_filter(selected_cat_col)
-                        
+                        filter_result = self._create_categorical_filter(
+                            selected_cat_col
+                        )
+
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
-                                       key="add_categorical_filter", width='stretch'):
+                            if st.button(
+                                translations.get_text(
+                                    "add_filter", lang_code=self.lang_code
+                                ),
+                                key="add_categorical_filter",
+                                width="stretch",
+                            ):
                                 if filter_result:
-                                    st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_cat_col] = filter_result
+                                    st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ][selected_cat_col] = filter_result
                                     st.rerun()
-                        
+
                         with col2:
-                            if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
-                                       key="remove_categorical_filter", width='stretch'):
-                                if selected_cat_col in st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
-                                    del st.session_state[config.SessionKeys.ADVANCED_FILTERS][selected_cat_col]
+                            if st.button(
+                                translations.get_text(
+                                    "remove_filter", lang_code=self.lang_code
+                                ),
+                                key="remove_categorical_filter",
+                                width="stretch",
+                            ):
+                                if (
+                                    selected_cat_col
+                                    in st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ]
+                                ):
+                                    del st.session_state[
+                                        config.SessionKeys.ADVANCED_FILTERS
+                                    ][selected_cat_col]
                                     st.rerun()
                 else:
-                    st.info(translations.get_text("no_categorical_columns", lang_code=self.lang_code))
-            
+                    st.info(
+                        translations.get_text(
+                            "no_categorical_columns", lang_code=self.lang_code
+                        )
+                    )
+
             # Show active filters summary with individual remove buttons
             if st.session_state[config.SessionKeys.ADVANCED_FILTERS]:
                 st.markdown("---")
-                st.subheader("📋 " + translations.get_text("active_filters_summary", lang_code=self.lang_code))
-                
-                for column, filter_config in st.session_state[config.SessionKeys.ADVANCED_FILTERS].items():
-                    translated_name = translations.translate_column(column, self.lang_code)
+                st.subheader(
+                    "📋 "
+                    + translations.get_text(
+                        "active_filters_summary", lang_code=self.lang_code
+                    )
+                )
+
+                for column, filter_config in st.session_state[
+                    config.SessionKeys.ADVANCED_FILTERS
+                ].items():
+                    translated_name = translations.translate_column(
+                        column, self.lang_code
+                    )
                     exclude_mode = filter_config.get("exclude", False)
-                    exclude_prefix = translations.get_text("not_label", self.lang_code) + " " if exclude_mode else ""
-                    
+                    exclude_prefix = (
+                        translations.get_text("not_label", self.lang_code) + " "
+                        if exclude_mode
+                        else ""
+                    )
+
                     # Create columns for filter description and remove button
                     desc_col, btn_col = st.columns([4, 1])
-                    
+
                     with desc_col:
                         # Handle new operator-based numeric filters
                         if "operator" in filter_config:
                             operator = filter_config["operator"]
                             value1 = filter_config["value1"]
                             value2 = filter_config.get("value2")
-                            
+
                             if operator == "between":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: {value1} ≤ value ≤ {value2}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: {value1} ≤ value ≤ {value2}"
+                                )
                             elif operator == "greater_than":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: > {value1}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: > {value1}"
+                                )
                             elif operator == "greater_equal":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: ≥ {value1}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: ≥ {value1}"
+                                )
                             elif operator == "less_than":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: < {value1}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: < {value1}"
+                                )
                             elif operator == "less_equal":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: ≤ {value1}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: ≤ {value1}"
+                                )
                             elif operator == "equal":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: = {value1}")
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: = {value1}"
+                                )
                             elif operator == "not_equal":
-                                st.write(f"• **{exclude_prefix}{translated_name}**: ≠ {value1}")
-                        
+                                st.write(
+                                    f"• **{exclude_prefix}{translated_name}**: ≠ {value1}"
+                                )
+
                         # Handle legacy min/max filters (for backward compatibility)
                         elif "min" in filter_config or "max" in filter_config:
                             min_val = filter_config.get("min", "∞")
                             max_val = filter_config.get("max", "∞")
-                            st.write(f"• **{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}")
-                        
+                            st.write(
+                                f"• **{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}"
+                            )
+
                         elif "values" in filter_config:
-                            values_str = ", ".join(str(v) for v in filter_config["values"])
-                            st.write(f"• **{exclude_prefix}{translated_name}**: {values_str}")
-                        
+                            values_str = ", ".join(
+                                str(v) for v in filter_config["values"]
+                            )
+                            st.write(
+                                f"• **{exclude_prefix}{translated_name}**: {values_str}"
+                            )
+
                         elif "value" in filter_config:
-                            st.write(f"• **{exclude_prefix}{translated_name}**: {filter_config['value']}")
-                    
+                            st.write(
+                                f"• **{exclude_prefix}{translated_name}**: {filter_config['value']}"
+                            )
+
                     with btn_col:
-                        if st.button("🗑️", key=f"remove_filter_{column}", 
-                                   help=translations.get_text("remove_this_filter", self.lang_code)):
-                            del st.session_state[config.SessionKeys.ADVANCED_FILTERS][column]
+                        if st.button(
+                            "🗑️",
+                            key=f"remove_filter_{column}",
+                            help=translations.get_text(
+                                "remove_this_filter", self.lang_code
+                            ),
+                        ):
+                            del st.session_state[config.SessionKeys.ADVANCED_FILTERS][
+                                column
+                            ]
                             st.rerun()
-        
+
         # Active filter summary expander (visible without opening the full filter panel)
         active_filters = st.session_state[config.SessionKeys.ADVANCED_FILTERS]
         if active_filters:
@@ -445,38 +601,65 @@ class AdvancedFilterManager:
             for column, filter_config in active_filters.items():
                 translated_name = translations.translate_column(column, self.lang_code)
                 exclude_mode = filter_config.get("exclude", False)
-                exclude_prefix = translations.get_text("not_label", self.lang_code) + " " if exclude_mode else ""
+                exclude_prefix = (
+                    translations.get_text("not_label", self.lang_code) + " "
+                    if exclude_mode
+                    else ""
+                )
 
                 if "operator" in filter_config:
                     operator = filter_config["operator"]
                     value1 = filter_config["value1"]
                     value2 = filter_config.get("value2")
                     if operator == "between":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {value1} ≤ value ≤ {value2}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: {value1} ≤ value ≤ {value2}"
+                        )
                     elif operator == "greater_than":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: > {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: > {value1}"
+                        )
                     elif operator == "greater_equal":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≥ {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: ≥ {value1}"
+                        )
                     elif operator == "less_than":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: < {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: < {value1}"
+                        )
                     elif operator == "less_equal":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≤ {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: ≤ {value1}"
+                        )
                     elif operator == "equal":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: = {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: = {value1}"
+                        )
                     elif operator == "not_equal":
-                        active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: ≠ {value1}")
+                        active_filter_texts.append(
+                            f"**{exclude_prefix}{translated_name}**: ≠ {value1}"
+                        )
                 elif "min" in filter_config or "max" in filter_config:
                     min_val = filter_config.get("min", "∞")
                     max_val = filter_config.get("max", "∞")
-                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}")
+                    active_filter_texts.append(
+                        f"**{exclude_prefix}{translated_name}**: {min_val} ≤ value ≤ {max_val}"
+                    )
                 elif "values" in filter_config:
                     values_str = ", ".join(str(v) for v in filter_config["values"])
-                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {values_str}")
+                    active_filter_texts.append(
+                        f"**{exclude_prefix}{translated_name}**: {values_str}"
+                    )
                 elif "value" in filter_config:
-                    active_filter_texts.append(f"**{exclude_prefix}{translated_name}**: {filter_config['value']}")
+                    active_filter_texts.append(
+                        f"**{exclude_prefix}{translated_name}**: {filter_config['value']}"
+                    )
 
             if active_filter_texts:
-                summary_label = translations.get_text("active_filters_summary", self.lang_code) + f" ({len(active_filter_texts)})"
+                summary_label = (
+                    translations.get_text("active_filters_summary", self.lang_code)
+                    + f" ({len(active_filter_texts)})"
+                )
                 with st.expander(summary_label, expanded=False):
                     for text in active_filter_texts:
                         st.markdown(f"- {text}")
@@ -488,4 +671,4 @@ class AdvancedFilterManager:
 def render_advanced_filters(df: pd.DataFrame, lang_code: str) -> pd.DataFrame:
     """Convenience function to render advanced filters and return filtered dataframe."""
     filter_manager = AdvancedFilterManager(df, lang_code)
-    return filter_manager.render_advanced_filters() 
+    return filter_manager.render_advanced_filters()
