@@ -216,13 +216,17 @@ def _render_stats_table(stats_data: list, lang_code: str) -> None:
 
 
 def _weights_state_hash(
-    user_weights: dict, user_context: dict, user_boosts: dict
+    user_weights: dict,
+    user_context: dict,
+    user_boosts: dict,
+    scoring_mode: str = "classic",
 ) -> str:
-    """Return a stable hash of the current weights/context/boosts state."""
+    """Return a stable hash of the current weights/context/boosts/mode state."""
     data = {
         "w": {k: v for k, v in sorted(user_weights.items()) if v != 0},
         "c": {k: v for k, v in sorted(user_context.items())},
         "b": {k: v for k, v in sorted(user_boosts.items())},
+        "m": scoring_mode,
     }
     return hashlib.md5(json.dumps(data).encode()).hexdigest()
 
@@ -614,6 +618,8 @@ def main():
         st.session_state[config.SessionKeys.USER_CONTEXT] = {}
     if config.SessionKeys.USER_BOOSTS not in st.session_state:
         st.session_state[config.SessionKeys.USER_BOOSTS] = {}
+    if config.SessionKeys.SCORING_MODE not in st.session_state:
+        st.session_state[config.SessionKeys.SCORING_MODE] = "classic"
 
     # Load current values from session state
     user_weights = st.session_state[config.SessionKeys.USER_WEIGHTS].copy()
@@ -901,6 +907,24 @@ def main():
             st.info(translations.get_text("reminder_city_context", lang_code))
             st.markdown("---")
 
+            # --- Scoring Mode Toggle ---
+            scoring_mode = st.radio(
+                translations.get_text("scoring_mode_label", lang_code),
+                options=["classic", "normalised"],
+                format_func=lambda m: translations.get_text(
+                    f"scoring_mode_{m}", lang_code
+                ),
+                index=0
+                if st.session_state.get(config.SessionKeys.SCORING_MODE, "classic")
+                == "classic"
+                else 1,
+                horizontal=True,
+                key="scoring_mode_radio",
+                help=translations.get_text("scoring_mode_help", lang_code),
+            )
+            st.session_state[config.SessionKeys.SCORING_MODE] = scoring_mode
+            st.markdown("---")
+
             # Create two columns for better layout
             left_col, right_col = st.columns(2)
 
@@ -1091,7 +1115,12 @@ def main():
         )
 
         if weights_active and not df_viz_filtered.empty:
-            w_hash = _weights_state_hash(user_weights, user_context, user_boosts)
+            scoring_mode = st.session_state.get(
+                config.SessionKeys.SCORING_MODE, "classic"
+            )
+            w_hash = _weights_state_hash(
+                user_weights, user_context, user_boosts, scoring_mode
+            )
             df_hash = hash(tuple(df_viz_filtered.index.tolist()))
             cached = st.session_state.get(config.SessionKeys.EFFICIENCY_CACHE)
 
@@ -1105,12 +1134,19 @@ def main():
                 logger.debug("Efficiency scores served from session cache")
             else:
                 logger.info("Applying efficiency calculations to main analysis table")
+                era_stats_df = (
+                    cached_calculate_era_stats(df_original)
+                    if st.session_state.get(config.SessionKeys.SCORING_MODE, "classic")
+                    == "normalised"
+                    else None
+                )
                 with st.spinner(translations.get_text("calculating_scores", lang_code)):
                     df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
                         df=df_viz_filtered,
                         user_weights=user_weights,
                         user_context=user_context,
                         user_boosts=user_boosts,
+                        era_stats_df=era_stats_df,
                     )
                 st.session_state[config.SessionKeys.EFFICIENCY_CACHE] = {
                     "w_hash": w_hash,

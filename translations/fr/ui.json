@@ -345,5 +345,9 @@
     "import_profile": "⬆️ Importer le profil",
     "import_profile_help": "Importez un profil JSON exporté précédemment pour restaurer vos paramètres.",
     "profile_imported": "Profil importé avec succès. Pondérations mises à jour.",
-    "profile_import_error": "Échec de l'importation du profil"
+    "profile_import_error": "Échec de l'importation du profil",
+    "scoring_mode_label": "Mode de calcul",
+    "scoring_mode_classic": "Classique",
+    "scoring_mode_normalised": "Normalisé (C1)",
+    "scoring_mode_help": "Classique : les valeurs brutes sont multipliées directement par le poids (nécessite un calibrage manuel). Normalisé : chaque colonne est mise à l'échelle [0–100] dans l'ère avant la pondération, de sorte qu'un poids de 1 signifie la même chose pour toutes les colonnes."
 }

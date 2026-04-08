@@ -161,3 +161,20 @@ def test_c1_zero_value_building_scores_zero():
         era_stats_df=era_stats,
     )
     assert result.iloc[0]["Total Score"] == 0.0
+
+
+def test_app_passes_era_stats_to_efficiency_calculation():
+    """app.py must pass era_stats_df keyword to calculate_direct_weighted_efficiency."""
+    with open("app.py", "r") as f:
+        source = f.read()
+    assert (
+        "era_stats_df=" in source
+    ), "app.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
+
+
+def test_app_has_scoring_mode_toggle():
+    """app.py must include the scoring mode radio widget."""
+    with open("app.py", "r") as f:
+        source = f.read()
+    assert "scoring_mode_radio" in source, "scoring_mode_radio key not found in app.py"
+    assert "SCORING_MODE" in source, "SCORING_MODE not referenced in app.py"

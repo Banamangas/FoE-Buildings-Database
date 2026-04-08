@@ -345,5 +345,9 @@
     "import_profile": "⬆️ Import profile",
     "import_profile_help": "Upload a previously exported JSON profile to restore your settings.",
     "profile_imported": "Profile imported successfully. Weights updated.",
-    "profile_import_error": "Failed to import profile"
+    "profile_import_error": "Failed to import profile",
+    "scoring_mode_label": "Scoring mode",
+    "scoring_mode_classic": "Classic",
+    "scoring_mode_normalised": "Normalised (C1)",
+    "scoring_mode_help": "Classic: raw values weighted directly (requires manual calibration across column scales). Normalised: each column is scaled to [0–100] within the era before weighting, so a weight of 1 on any column means the same thing."
 }
