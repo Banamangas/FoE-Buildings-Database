@@ -8,6 +8,7 @@ from config import (
     USER_CONTEXT_FIELDS,
     USER_BOOST_FIELDS,
     PER_SQUARE_EXCLUDED_COLUMNS,
+    C1_SCORE_MULTIPLIER,
     logger,
     COL_ERA,
     COL_SIZE,
@@ -380,8 +381,17 @@ def calculate_direct_weighted_efficiency(
     user_weights: Dict[str, float],
     user_context: Dict[str, float],
     user_boosts: Optional[Dict[str, float]] = None,
+    era_stats_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
-    """Calculate weighted efficiency using direct weighted sum with integrated boosts."""
+    """Calculate weighted efficiency using direct weighted sum with integrated boosts.
+
+    When era_stats_df is provided (non-empty), C1 per-era max normalisation is applied:
+    each metric value is divided by the era's maximum before weighting, then multiplied
+    by C1_SCORE_MULTIPLIER (100) for display readability (e.g. 0.0278 → 2.78).
+
+    When era_stats_df is None, classic mode: raw values are used unchanged (backward
+    compatible with all existing call sites).
+    """
     logger.info(f"Calculating direct weighted efficiency for {len(df)} buildings")
 
     if df.empty:
@@ -415,6 +425,12 @@ def calculate_direct_weighted_efficiency(
                 building_row, user_context, user_boosts, true_base_context
             )
 
+            # Pre-resolve era for C1 normalisation (None in classic mode)
+            building_era = (
+                building_row.get(COL_ERA)
+                if (era_stats_df is not None and not era_stats_df.empty)
+                else None
+            )
             total_score = 0.0
 
             # Process all additive metrics (now including boost-enhanced values)
@@ -422,20 +438,45 @@ def calculate_direct_weighted_efficiency(
                 if metric in enhanced_row and metric in user_weights:
                     weight = user_weights.get(metric, 0)
                     if weight > 0 and pd.notna(enhanced_row[metric]):
-                        contribution = enhanced_row[metric] * weight
+                        value = float(enhanced_row[metric])
+
+                        # C1: normalise by era max, then scale for display readability
+                        if building_era is not None:
+                            assert (
+                                era_stats_df is not None
+                            )  # implied by building_era check
+                            try:
+                                era_max = era_stats_df.loc[
+                                    building_era, (metric, "max")
+                                ]
+                                if pd.notna(era_max) and era_max > 0:
+                                    value = (value / era_max) * C1_SCORE_MULTIPLIER
+                                else:
+                                    value = 0.0
+                            except KeyError:
+                                pass  # metric or era not in stats — use raw value
+
+                        contribution = value * weight
                         total_score += contribution
                         logger.debug(
-                            f"Building {idx}, {metric}: {enhanced_row[metric]:.1f} * {weight} = {contribution:.1f}"
+                            f"Building {idx}, {metric}: raw={enhanced_row[metric]:.4f}"
+                            + (
+                                f", norm×{C1_SCORE_MULTIPLIER}={value:.4f}"
+                                if building_era is not None
+                                else ""
+                            )
+                            + f" * {weight} = {contribution:.4f}"
                         )
 
             # Set total score
-            df.at[idx, COL_TOTAL_SCORE] = round(total_score, 1)
+            decimal_places = 4 if era_stats_df is not None else 1
+            df.at[idx, COL_TOTAL_SCORE] = round(total_score, decimal_places)
 
             # Calculate efficiency (score per tile)
             building_size = building_row.get(COL_SIZE, 1)
             if building_size > 0:
                 efficiency = total_score / building_size
-                df.at[idx, COL_WEIGHTED_EFFICIENCY] = round(efficiency, 1)
+                df.at[idx, COL_WEIGHTED_EFFICIENCY] = round(efficiency, decimal_places)
             else:
                 df.at[idx, COL_WEIGHTED_EFFICIENCY] = 0.0
 
