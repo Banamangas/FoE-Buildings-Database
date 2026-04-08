@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 
 import calculations
@@ -186,3 +188,28 @@ def test_city_analysis_passes_era_stats():
     assert (
         "era_stats_df=" in source
     ), "city_analysis.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
+
+
+def test_app_has_scoring_explanation_expander():
+    """app.py must include the scoring explanation expander."""
+    with open("app.py", "r") as f:
+        source = f.read()
+    assert "scoring_explanation_title" in source
+    assert "scoring_explanation_normalised_body" in source
+    assert "scoring_explanation_classic_body" in source
+
+
+def test_translation_keys_exist():
+    """Both EN and FR translation files must have the 3 scoring explanation keys."""
+    for lang in ("en", "fr"):
+        with open(f"translations/{lang}/ui.json", "r") as f:
+            data = json.load(f)
+        assert (
+            "scoring_explanation_title" in data
+        ), f"{lang}/ui.json missing scoring_explanation_title"
+        assert (
+            "scoring_explanation_classic_body" in data
+        ), f"{lang}/ui.json missing classic body"
+        assert (
+            "scoring_explanation_normalised_body" in data
+        ), f"{lang}/ui.json missing normalised body"

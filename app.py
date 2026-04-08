@@ -923,6 +923,18 @@ def main():
                 help=translations.get_text("scoring_mode_help", lang_code),
             )
             st.session_state[config.SessionKeys.SCORING_MODE] = scoring_mode
+
+            # --- Scoring Mode Explanation ---
+            explanation_key = (
+                "scoring_explanation_normalised_body"
+                if scoring_mode == "normalised"
+                else "scoring_explanation_classic_body"
+            )
+            with st.expander(
+                translations.get_text("scoring_explanation_title", lang_code),
+                expanded=False,
+            ):
+                st.markdown(translations.get_text(explanation_key, lang_code))
             st.markdown("---")
 
             # Create two columns for better layout
