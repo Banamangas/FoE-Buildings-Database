@@ -428,6 +428,21 @@ ADDITIVE_METRICS = [
     "prev_age_goods",
     "special_goods",
     "guild_goods",
+    # Units (were in WEIGHTABLE_COLUMNS but not scoring — now score)
+    "rogues",
+    "fast_units",
+    "heavy_units",
+    "ranged_units",
+    "artillery_units",
+    "light_units",
+    "next_age_fast_units",
+    "next_age_heavy_units",
+    "next_age_ranged_units",
+    "next_age_artillery_units",
+    "next_age_light_units",
+    # Population (signed: negative values penalise high-consumption buildings)
+    "Population",
+    # Army boosts
     "Red Attack",
     "Red Defense",
     "Blue Attack",
@@ -451,6 +466,10 @@ ADDITIVE_METRICS = [
     "QA per hour",
     "QA Capacity",
     "finish_special_production",
+    # Previously unscored city-level boost columns (score directly under C1)
+    "Coin %",
+    "Supplies %",
+    "Medal Boost",
 ]
 
 # Maps a building's percentage-boost column to the production column(s) it amplifies.
