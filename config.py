@@ -89,6 +89,9 @@ ERAS_LEVEL_MAP = {
 WEIGHTABLE_COLUMNS = [
     "forge_points",
     "forgepoint_package",
+    "coins",
+    "supplies",
+    "medals",
     "goods",
     "next_age_goods",
     "prev_age_goods",
@@ -122,7 +125,16 @@ WEIGHTABLE_COLUMNS = [
     "Red QI Defense",
     "Blue QI Attack",
     "Blue QI Defense",
+    "QI Coin at start",
+    "QI Supplies at start",
+    "QI Goods at start",
+    "QI Units at start",
+    "QA per hour",
+    "QA Capacity",
     "finish_special_production",
+    "Coin %",
+    "Supplies %",
+    "Medal Boost",
 ]
 
 # Define column groups
@@ -483,6 +495,10 @@ BOOST_TO_BASE_MAPPING = {
     "Special Goods Production %": "special_goods",
 }
 
+# Multiplier applied to C1 normalised scores before display.
+# Scales 0.0278 → 2.78, making scores more legible without changing rankings.
+C1_SCORE_MULTIPLIER = 100
+
 # User context configuration for multiplicative metrics
 USER_CONTEXT_FIELDS = {
     "fp_daily_production": {
@@ -575,6 +591,7 @@ class SessionKeys:
     IMPORTED_CITY = "imported_city"
     SESSION_ID = "session_id"
     EFFICIENCY_CACHE = "efficiency_cache"
+    SCORING_MODE = "scoring_mode"  # "classic" or "normalised"
 
 
 # Points awarded per unit of resource, used by city_analysis.py to rank owned buildings.
