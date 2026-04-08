@@ -178,3 +178,11 @@ def test_app_has_scoring_mode_toggle():
         source = f.read()
     assert "scoring_mode_radio" in source, "scoring_mode_radio key not found in app.py"
     assert "SCORING_MODE" in source, "SCORING_MODE not referenced in app.py"
+
+
+def test_city_analysis_passes_era_stats():
+    with open("city_analysis.py", "r") as f:
+        source = f.read()
+    assert (
+        "era_stats_df=" in source
+    ), "city_analysis.py does not pass era_stats_df to calculate_direct_weighted_efficiency"

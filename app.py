@@ -1562,6 +1562,12 @@ def main():
             user_boosts=user_boosts,
             selected_columns=selected_columns,
             lang_code=lang_code,
+            era_stats_df=(
+                cached_calculate_era_stats(df_original)
+                if st.session_state.get(config.SessionKeys.SCORING_MODE, "classic")
+                == "normalised"
+                else None
+            ),
         )
 
     # --- Visualizations Tab ---

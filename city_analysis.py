@@ -419,6 +419,7 @@ def merge_with_database(
     user_context: Dict[str, float],
     user_boosts: Dict[str, float],
     lang_code: str,
+    era_stats_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Merge building data with the database and calculate efficiency with enhanced validation.
 
@@ -430,6 +431,7 @@ def merge_with_database(
         user_context: User context configuration
         user_boosts: User boost configuration
         lang_code: Language code
+        era_stats_df: Per-era normalisation stats DataFrame (None = classic mode)
 
     Returns:
         Filtered dataframe with quantity and source columns
@@ -541,6 +543,7 @@ def merge_with_database(
                 user_weights=user_weights,
                 user_context=user_context,
                 user_boosts=user_boosts,
+                era_stats_df=era_stats_df,
             )
             logger.info("Efficiency calculations completed successfully")
         except Exception as e:
@@ -661,6 +664,7 @@ def render_city_analysis_tab(
     user_boosts: Dict[str, float],
     selected_columns: List[str],
     lang_code: str,
+    era_stats_df: Optional[pd.DataFrame] = None,
 ) -> None:
     """Render the main City Analysis tab interface.
 
@@ -671,6 +675,7 @@ def render_city_analysis_tab(
         user_boosts: User boost configuration (from session state)
         selected_columns: Selected columns for display
         lang_code: Language code
+        era_stats_df: Per-era normalisation stats DataFrame (None = classic mode)
     """
     st.header(translations.get_text("city_analysis", lang_code))
     st.markdown(translations.get_text("city_analysis_help", lang_code))
@@ -904,6 +909,7 @@ def render_city_analysis_tab(
                     user_context=user_context,
                     user_boosts=user_boosts,
                     lang_code=lang_code,
+                    era_stats_df=era_stats_df,
                 )
                 if not merged_inventory.empty:
                     merged_parts.append(merged_inventory)
@@ -916,6 +922,7 @@ def render_city_analysis_tab(
                     user_context=user_context,
                     user_boosts=user_boosts,
                     lang_code=lang_code,
+                    era_stats_df=era_stats_df,
                 )
                 if not merged_city.empty:
                     merged_parts.append(merged_city)
