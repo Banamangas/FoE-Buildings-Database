@@ -441,10 +441,7 @@ def calculate_direct_weighted_efficiency(
                         value = float(enhanced_row[metric])
 
                         # C1: normalise by era max, then scale for display readability
-                        if building_era is not None:
-                            assert (
-                                era_stats_df is not None
-                            )  # implied by building_era check
+                        if building_era is not None and era_stats_df is not None:
                             try:
                                 era_max = era_stats_df.loc[
                                     building_era, (metric, "max")
@@ -469,7 +466,9 @@ def calculate_direct_weighted_efficiency(
                         )
 
             # Set total score
-            decimal_places = 4 if era_stats_df is not None else 1
+            decimal_places = (
+                4 if (era_stats_df is not None and not era_stats_df.empty) else 1
+            )
             df.at[idx, COL_TOTAL_SCORE] = round(total_score, decimal_places)
 
             # Calculate efficiency (score per tile)
