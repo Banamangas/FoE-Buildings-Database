@@ -92,6 +92,9 @@ test_files/
 *_test.py
 *test*.json
 
+# CSV files
+*.csv
+
 # Old files
 old_files/
 *old*
@@ -181,3 +184,9 @@ cython_debug/
 # Streamlit
 .streamlit/secrets.toml
 .*/
+
+# Git worktrees
+.worktrees/
+
+# Docs (local only, not tracked)
+docs/
