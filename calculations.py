@@ -3,7 +3,6 @@ import pandas as pd
 
 # Import configurations and logger
 from config import (
-    WEIGHTABLE_COLUMNS,
     ADDITIVE_METRICS,
     BOOST_TO_BASE_MAPPING,
     USER_CONTEXT_FIELDS,
@@ -62,8 +61,8 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
         )
         return pd.DataFrame()  # Return empty DataFrame if no data
 
-    # Ensure weightable columns exist in the DataFrame
-    cols_to_agg = [col for col in WEIGHTABLE_COLUMNS if col in df.columns]
+    # Ensure additive metrics exist in the DataFrame (covers all scoring columns)
+    cols_to_agg = [col for col in ADDITIVE_METRICS if col in df.columns]
     if not cols_to_agg:
         logger.warning(
             "Cannot calculate era stats: No weightable columns found in DataFrame."

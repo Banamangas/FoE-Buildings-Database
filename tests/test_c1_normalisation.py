@@ -50,3 +50,27 @@ def test_scoring_mode_session_key_exists():
 
     assert hasattr(SessionKeys, "SCORING_MODE")
     assert SessionKeys.SCORING_MODE == "scoring_mode"
+
+
+def test_era_stats_covers_all_additive_metrics():
+    """calculate_era_stats must produce max values for every ADDITIVE_METRICS column present in df."""
+    import pandas as pd
+    import calculations
+
+    sample_data = {
+        "Era": ["SpaceAgeSpaceHub", "SpaceAgeSpaceHub", "BronzeAge"],
+        "forge_points": [100.0, 576.0, 10.0],
+        "Coin %": [0.0, 300.0, 0.0],
+        "Medal Boost": [0.0, 50.0, 0.0],
+        "Nbr of squares (Avg)": [9.0, 36.0, 4.0],
+    }
+    df = pd.DataFrame(sample_data)
+    stats = calculations.calculate_era_stats(df)
+    assert not stats.empty
+    assert ("Coin %", "max") in stats.columns, "Coin % max missing from era stats"
+    assert (
+        "Medal Boost",
+        "max",
+    ) in stats.columns, "Medal Boost max missing from era stats"
+    assert stats.loc["SpaceAgeSpaceHub", ("forge_points", "max")] == 576.0
+    assert stats.loc["SpaceAgeSpaceHub", ("Coin %", "max")] == 300.0
