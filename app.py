@@ -209,7 +209,7 @@ def _render_stats_table(stats_data: list, lang_code: str) -> None:
             },
             hide_index=True,
             height=40 * len(stats_data) if len(stats_data) > 10 else 400,
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info(translations.get_text("no_stats_available", lang_code))
@@ -621,6 +621,31 @@ def main():
     if config.SessionKeys.SCORING_MODE not in st.session_state:
         st.session_state[config.SessionKeys.SCORING_MODE] = "classic"
 
+    # Apply any pending weight preset BEFORE weights are read or widgets are rendered.
+    _pending_preset = st.session_state.pop("_pending_preset_load", None)
+    if _pending_preset is not None:
+        for k in list(st.session_state[config.SessionKeys.USER_WEIGHTS].keys()):
+            st.session_state[config.SessionKeys.USER_WEIGHTS][k] = 0.0
+            st.session_state[f"weight_{k}"] = 0.0
+        for k, v in _pending_preset.get("weights", {}).items():
+            st.session_state[config.SessionKeys.USER_WEIGHTS][k] = float(v)
+            st.session_state[f"weight_{k}"] = float(v)
+        mode = _pending_preset.get("mode", "classic")
+        st.session_state[config.SessionKeys.SCORING_MODE] = mode
+        st.session_state["scoring_mode_radio"] = mode
+        if config.SessionKeys.SELECTED_COLUMNS_SET in st.session_state:
+            st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET].add(
+                config.COL_WEIGHTED_EFFICIENCY
+            )
+        # Increment the refresh counter so all checkbox widgets get new keys on the next
+        # render. Without this, Streamlit reuses stale widget state (False) for the
+        # Weighted Efficiency checkbox, which causes the column selector to immediately
+        # discard the column we just added.
+        st.session_state[config.SessionKeys.COLUMN_SELECTOR_REFRESH] = (
+            st.session_state.get(config.SessionKeys.COLUMN_SELECTOR_REFRESH, 0) + 1
+        )
+        st.rerun()
+
     # Load current values from session state
     user_weights = st.session_state[config.SessionKeys.USER_WEIGHTS].copy()
     user_context = st.session_state[config.SessionKeys.USER_CONTEXT].copy()
@@ -635,8 +660,8 @@ def main():
 
     # Tab selector with session state persistence
     tab_names = [
-        translations.get_text("building_details", lang_code),
         translations.get_text("building_analysis", lang_code),
+        translations.get_text("building_details", lang_code),
         translations.get_text("city_analysis", lang_code),
         translations.get_text("visualizations", lang_code),
     ]
@@ -656,8 +681,8 @@ def main():
         st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] = selected_tab
         st.rerun()
 
-    # --- Building Details Tab (First Tab) ---
-    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 0:
+    # --- Building Details Tab (Second Tab) ---
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 1:
         st.header(translations.get_text("building_stats", lang_code))
 
         # Filter buildings by selected era (same as Home tab)
@@ -850,8 +875,8 @@ def main():
     df_viz_filtered[config.COL_WEIGHTED_EFFICIENCY] = 0.0  # Initialize
     df_viz_filtered[config.COL_TOTAL_SCORE] = 0.0  # Initialize
 
-    # --- Building Analysis Tab (Second Tab) ---
-    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 1:
+    # --- Building Analysis Tab (First Tab) ---
+    if st.session_state[config.SessionKeys.ACTIVE_MAIN_TAB] == 0:
         # Initialize active subtab in session state
         if config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB not in st.session_state:
             st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] = 0
@@ -937,6 +962,35 @@ def main():
                 st.markdown(translations.get_text(explanation_key, lang_code))
             st.markdown("---")
 
+            # --- Weight Presets ---
+            preset_keys = list(config.WEIGHT_PRESETS.keys())
+            preset_col1, preset_col2 = st.columns([1, 3])
+            st.markdown(
+                f"<div style='padding-top:6px;font-size:1.2rem;font-weight:600'>{translations.get_text('weight_presets_label', lang_code)}</div>",
+                unsafe_allow_html=True,
+            )
+            with preset_col1:
+                selected_preset_key = st.selectbox(
+                    translations.get_text("weight_presets_label", lang_code),
+                    options=[None] + preset_keys,
+                    format_func=lambda k: ""
+                    if k is None
+                    else translations.get_text(f"weight_preset_{k}", lang_code),
+                    label_visibility="collapsed",
+                    help=translations.get_text("weight_presets_help", lang_code),
+                    key="weight_preset_selector",
+                )
+            with preset_col2:
+                if st.button(
+                    translations.get_text("load_preset", lang_code),
+                    disabled=selected_preset_key is None,
+                ):
+                    st.session_state["_pending_preset_load"] = config.WEIGHT_PRESETS[
+                        selected_preset_key
+                    ]
+                    st.rerun()
+            st.markdown("---")
+
             # Create two columns for better layout
             left_col, right_col = st.columns(2)
 
@@ -982,8 +1036,8 @@ def main():
                                         help=help_text,
                                         value=user_weights.get(col_name, 0.0),
                                         min_value=0.0,
-                                        step=0.1,
-                                        format="%.1f",
+                                        step=0.05,
+                                        format="%.2f",
                                         key=f"weight_{col_name}",
                                     )
                                     user_weights[col_name] = weight_value
@@ -1178,6 +1232,38 @@ def main():
 
         # --- Table Subtab ---
         if st.session_state[config.SessionKeys.ACTIVE_ANALYSIS_SUBTAB] == 0:
+            # --- Weight Presets ---
+            preset_keys = list(config.WEIGHT_PRESETS.keys())
+
+            st.markdown(
+                f"<div style='padding-top:6px;padding-bottom:6px;font-size:1.2rem;font-weight:600'>{translations.get_text('weight_presets_label', lang_code)}</div>",
+                unsafe_allow_html=True,
+            )
+
+            preset_col1, preset_col2 = st.columns([1, 3])
+
+            with preset_col1:
+                selected_preset_key = st.selectbox(
+                    translations.get_text("weight_presets_label", lang_code),
+                    options=[None] + preset_keys,
+                    format_func=lambda k: ""
+                    if k is None
+                    else translations.get_text(f"weight_preset_{k}", lang_code),
+                    label_visibility="collapsed",
+                    help=translations.get_text("weight_presets_help", lang_code),
+                    key="weight_preset_selector",
+                )
+            with preset_col2:
+                if st.button(
+                    translations.get_text("load_preset", lang_code),
+                    disabled=selected_preset_key is None,
+                    key="load_preset_table",
+                ):
+                    st.session_state["_pending_preset_load"] = config.WEIGHT_PRESETS[
+                        selected_preset_key
+                    ]
+                    st.rerun()
+
             try:
                 # --- Prepare Display Columns ---
                 # Filter columns that exist in the filtered dataframe

@@ -653,7 +653,7 @@ class DataVisualizationManager:
             styled_df,
             column_config=column_config,
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             height=300 if len(styled_df.index) <= 10 else 600,
         )
 
