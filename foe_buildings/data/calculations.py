@@ -1,8 +1,9 @@
 from typing import Dict, Optional
 import pandas as pd
+import streamlit as st
 
 # Import configurations and logger
-from config import (
+from foe_buildings.config import (
     ADDITIVE_METRICS,
     BOOST_TO_BASE_MAPPING,
     USER_CONTEXT_FIELDS,
@@ -519,3 +520,30 @@ def calculate_weighted_efficiency(
     return calculate_direct_weighted_efficiency(
         df, user_weights, user_context, user_boosts
     )
+
+
+@st.cache_data
+def cached_calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """Cached wrapper around calculate_era_stats."""
+    return calculate_era_stats(df)
+
+
+def combine_army_with_ge_gbg(df: pd.DataFrame) -> pd.DataFrame:
+    """Combine base army stats with GE/GBG equivalents and remove the base columns."""
+    df_combined = df.copy()
+    army_mappings = {
+        "Red Attack": ["Red GE Attack", "Red GBG Attack"],
+        "Red Defense": ["Red GE Defense", "Red GBG Defense"],
+        "Blue Attack": ["Blue GE Attack", "Blue GBG Attack"],
+        "Blue Defense": ["Blue GE Defense", "Blue GBG Defense"],
+    }
+    for base_stat, target_stats in army_mappings.items():
+        if base_stat in df_combined.columns:
+            base_values = df_combined[base_stat].fillna(0)
+            for target_stat in target_stats:
+                if target_stat in df_combined.columns:
+                    df_combined[target_stat] = (
+                        df_combined[target_stat].fillna(0) + base_values
+                    )
+            df_combined = df_combined.drop(columns=[base_stat])
+    return df_combined

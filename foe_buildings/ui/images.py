@@ -12,10 +12,8 @@ from typing import Dict, Optional
 
 import streamlit as st
 
-import config
-import data_loader
-
-logger = config.logger
+from foe_buildings.config import logger
+from foe_buildings.data import loader as data_loader
 
 FORGEHX_IMAGE_BASE = "https://foezz.innogamescdn.com/assets"
 
@@ -108,3 +106,9 @@ def get_building_image_url(asset_id: str) -> Optional[str]:
 def has_building_image(asset_id: str) -> bool:
     """Convenience wrapper: check if a building has an image."""
     return get_image_manager().has_image(asset_id)
+
+
+@st.cache_resource
+def get_cached_image_manager() -> BuildingImageManager:
+    """Return the singleton BuildingImageManager (cached for the process lifetime)."""
+    return get_image_manager()

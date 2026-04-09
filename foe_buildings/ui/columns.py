@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 from typing import List, Dict, Set
-import config
-import translations
-import ui_components
+from foe_buildings import config
+from foe_buildings import i18n as translations
+from foe_buildings.ui import grid as ui_components
 
 
 class ColumnSelector:

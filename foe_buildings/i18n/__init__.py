@@ -4,7 +4,8 @@ from functools import lru_cache
 from typing import Dict
 from re import sub
 
-from config import ERAS_DICT, logger
+from foe_buildings.config import ERAS_DICT, logger
+from foe_buildings.config import TRANSLATIONS_PATH
 
 # --- Language Definitions ---
 LANGUAGES = {
@@ -30,7 +31,7 @@ def _load_translation_file(file_path: str) -> Dict:
 
 def get_translation_dict(namespace: str, lang_code: str) -> Dict:
     """Gets the translation dictionary for a given namespace and language."""
-    primary_path = f"translations/{lang_code}/{namespace}.json"
+    primary_path = f"{TRANSLATIONS_PATH}/{lang_code}/{namespace}.json"
     primary_dict = _load_translation_file(primary_path)
 
     if primary_dict:  # Return immediately if primary found and non-empty
@@ -38,7 +39,7 @@ def get_translation_dict(namespace: str, lang_code: str) -> Dict:
 
     # Fallback to English if primary not found or empty
     if lang_code != "en":
-        fallback_path = f"translations/en/{namespace}.json"
+        fallback_path = f"{TRANSLATIONS_PATH}/en/{namespace}.json"
         fallback_dict = _load_translation_file(fallback_path)
         if fallback_dict:
             return fallback_dict

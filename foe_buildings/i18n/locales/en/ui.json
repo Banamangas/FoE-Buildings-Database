@@ -348,7 +348,7 @@
     "profile_import_error": "Failed to import profile",
     "scoring_mode_label": "Scoring mode",
     "scoring_mode_classic": "Classic",
-    "scoring_mode_normalised": "Normalised (C1)",
+    "scoring_mode_normalised": "Normalised",
     "scoring_mode_help": "Classic: raw values weighted directly (requires manual calibration across column scales). Normalised: each column is scaled to [0–100] within the era before weighting, so a weight of 1 on any column means the same thing.",
     "scoring_explanation_title": "How does scoring work?",
     "scoring_explanation_classic_body": "**Classic mode** — Each building's daily production values are multiplied directly by your weights and summed. The total is divided by tile count to produce the Weighted Efficiency score.\n\n**Calibration is manual:** a weight of 1 on Forge Points (max ~576/day) is not equivalent to a weight of 1 on Supplies (max ~595 000/day). You would need `weight_supplies ≈ 0.001 × weight_fp` to balance them.\n\n**Boost columns** (FP boost %, Goods Boost %) require you to fill in your daily production in the context fields below — otherwise those buildings score 0.",

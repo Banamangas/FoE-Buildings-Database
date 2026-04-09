@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from typing import List, Dict, Any, Optional
-import config
-import translations
+from foe_buildings import config
+from foe_buildings import i18n as translations
 
 
 class AdvancedFilterManager:

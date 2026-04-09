@@ -11,29 +11,41 @@ A Streamlit web app for analyzing and comparing Forge of Empires buildings. Play
 
 ## Module Map
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `app.py` | Entry point. Orchestrates tabs (Home, Weights, City Analysis, Visualizations), session state, filters, and AG-Grid rendering |
-| `config.py` | All constants: `ERAS_DICT`, `ERAS_LEVEL_MAP`, `COLUMN_GROUPS`, `COLUMN_PRESETS`, `WEIGHTABLE_COLUMNS`, `BOOST_TO_BASE_MAPPING`, `RANKING_POINTS_PER_RESOURCE`, `PER_SQUARE_EXCLUDED_COLUMNS`, etc. |
-| `data_loader.py` | Fetches buildings from the VPS API (paginated, `_PAGE_SIZE=1000`). Caches with a 23-hour TTL (tied to the 18:00 daily API refresh). Returns a processed pandas DataFrame |
-| `calculations.py` | Efficiency scoring engine. `apply_boosts_to_base_metrics()` is the core function — see Boost Algorithm below |
-| `translations.py` | Loads JSON translation files, resolves keys with fallback to English, handles yes/no keys and dynamic key construction |
-| `ui_components.py` | AG-Grid configuration, column formatters, heatmap styling, icon loading/base64 encoding |
-| `column_selector.py` | Sidebar column group toggles and preset selection |
-| `advanced_filters.py` | AND/OR filter logic with numeric operators (between, gt, gte, lt, lte, eq, neq) and categorical/text filters |
-| `building_images.py` | Resolves ForgeHX asset IDs to image URLs using `_SS_` path convention |
-| `city_analysis.py` | Tab that recommends top buildings for a player's city context. Includes era-aware filtering and ranking via `RANKING_POINTS_PER_RESOURCE` |
-| `data_visualizations.py` | Charts (Plotly), heatmaps, building comparison tables, and the greedy building placement optimizer |
+| `app.py` | Thin entry point — calls `foe_buildings.app.main()` |
+| `foe_buildings/app.py` | Orchestrator: page config, data load, sidebar filters, tab routing |
+| `foe_buildings/config/api.py` | Logging setup, `get_api_config()`, file path constants |
+| `foe_buildings/config/constants.py` | `ERAS_DICT`, `ERAS_LEVEL_MAP`, `COLUMN_GROUPS`, `COLUMN_PRESETS`, column name constants |
+| `foe_buildings/config/scoring.py` | `WEIGHTABLE_COLUMNS`, `BOOST_TO_BASE_MAPPING`, `ADDITIVE_METRICS`, `RANKING_POINTS_PER_RESOURCE`, `WEIGHT_PRESETS` |
+| `foe_buildings/config/session.py` | `SessionKeys` class, `init_session_state()` helper |
+| `foe_buildings/data/loader.py` | Fetches buildings from the VPS API (paginated, cached 23h) |
+| `foe_buildings/data/calculations.py` | Scoring engine: boost algorithm, weighted efficiency, per-square, army combination |
+| `foe_buildings/tabs/building_analysis/__init__.py` | Building Analysis tab: subtab routing and efficiency caching |
+| `foe_buildings/tabs/building_analysis/weights.py` | Weights subtab: weight/context/boost inputs, presets, profile import/export |
+| `foe_buildings/tabs/building_analysis/table.py` | Table subtab: AG-Grid display, export, credits |
+| `foe_buildings/tabs/building_analysis/consumables.py` | Consumables Analysis subtab |
+| `foe_buildings/tabs/building_analysis/qi_boosts.py` | QI Boosts Analysis subtab |
+| `foe_buildings/tabs/building_details.py` | Building Details tab: per-building stats and images |
+| `foe_buildings/tabs/city_analysis.py` | City Analysis tab: building recommendations for player city context |
+| `foe_buildings/tabs/visualizations.py` | Visualizations tab: charts, heatmaps, building comparison, greedy optimizer |
+| `foe_buildings/ui/grid.py` | AG-Grid configuration, column formatters, heatmap styling, icon loading |
+| `foe_buildings/ui/filters.py` | AND/OR advanced filter logic with numeric/categorical operators |
+| `foe_buildings/ui/columns.py` | Sidebar column group toggles and preset selection |
+| `foe_buildings/ui/images.py` | ForgeHX asset ID → CDN image URL resolution |
+| `foe_buildings/ui/styles/tabs.css` | CSS for tab-styled radio buttons |
+| `foe_buildings/i18n/__init__.py` | Translation engine: JSON loading, fallback, all translate_* functions |
+| `foe_buildings/i18n/locales/{en,fr}/` | Translation JSON files per language |
 
 ---
 
 ## Architecture Notes
 
 ### Data Flow
-1. `data_loader.py` fetches paginated JSON from the VPS API → returns DataFrame
-2. `calculations.py` enriches it with weighted efficiency scores
-3. `app.py` applies session-state filters (era, event, name search, advanced filters)
-4. `ui_components.py` renders the AG-Grid table with heatmap styling
+1. `foe_buildings/data/loader.py` fetches paginated JSON from the VPS API → returns DataFrame
+2. `foe_buildings/data/calculations.py` enriches it with weighted efficiency scores
+3. `foe_buildings/app.py` applies session-state filters (era, event, name search, advanced filters)
+4. `foe_buildings/ui/grid.py` renders the AG-Grid table with heatmap styling
 
 ### API
 Building data is served from a private VPS (not GitHub raw files). Configure in `.streamlit/secrets.toml`:
@@ -44,7 +56,7 @@ key = "foe_your_api_key_here"
 ```
 
 ### Translation System
-JSON files in `translations/<lang>/` — `en/` is canonical. Keys missing in `fr/` fall back to English. Files:
+JSON files in `foe_buildings/i18n/locales/<lang>/` — `en/` is canonical. Keys missing in `fr/` fall back to English. Files:
 - `ui.json` — sidebar labels, button text, tab names
 - `columns.json` — column header display names
 - `building_names.json` — localized building names
@@ -53,7 +65,7 @@ JSON files in `translations/<lang>/` — `en/` is canonical. Keys missing in `fr
 
 ---
 
-## Boost Algorithm (`calculations.py:apply_boosts_to_base_metrics`)
+## Boost Algorithm (`foe_buildings/data/calculations.py:apply_boosts_to_base_metrics`)
 
 The 3-step pipeline converts boost-percentage buildings into equivalent production units:
 
@@ -76,24 +88,32 @@ The equivalent production is treated like a direct production value and multipli
 
 ---
 
-## Key Constants (`config.py`)
+## Key Constants (`foe_buildings/config/scoring.py` and `foe_buildings/config/constants.py`)
 
 - `RANKING_POINTS_PER_RESOURCE` — points assigned per unit of resource for City Analysis ranking. Goods values are era-scaled (higher eras = more points per good). `special_goods` only has entries for eras where special goods exist in-game (Arctic Future, Oceanic Future, and Space Ages).
-- `ERAS_LEVEL_MAP` — maps integer era level (1–22) to era key string; used for era-filtered analysis in `city_analysis.py`
+- `ERAS_LEVEL_MAP` — maps integer era level (1–22) to era key string; used for era-filtered analysis in `foe_buildings/tabs/city_analysis.py`
 - `PER_SQUARE_EXCLUDED_COLUMNS` — see Per-Square Mode above
 
 ---
 
 ## Development Conventions
 
-- **Session state keys** are bare strings scattered across files (tracked as tech debt in TODO #010). Centralizing them in `config.py` is a pending refactor.
-- **Column name literals** (`'name'`, `'Era'`, `'Weighted Efficiency'`, etc.) appear across multiple files (TODO #009). Treat as known debt.
-- **Error handling** is intentionally inconsistent by layer: `data_loader.py` calls `st.stop()` (fatal — no data, no app), `calculations.py` returns an empty/zeroed DataFrame (recoverable — show table without scores), `city_analysis.py` logs and continues (best-effort — partial results acceptable). Match the pattern of the surrounding code when adding new error paths; a unification refactor is tracked as TODO #019.
-- **QI Optimizer** tab is commented out (`app.py:24,647,1364`) — dead code pending evaluation (TODO #038). Do not enable without completing the module.
-- **`translations/fr/messages.json`** exists but `translations/en/messages.json` does not — asymmetry tracked as TODO #035.
+- **Session state keys** are centralised in `foe_buildings/config/session.py` as `SessionKeys` class attributes. Use `SessionKeys.FOO` rather than bare string literals.
+- **Column name literals** (`'name'`, `'Era'`, `'Weighted Efficiency'`, etc.) are defined as constants in `foe_buildings/config/constants.py` (TODO #009). Treat remaining bare literals as known debt.
+- **Error handling** is intentionally inconsistent by layer: `foe_buildings/data/loader.py` calls `st.stop()` (fatal — no data, no app), `foe_buildings/data/calculations.py` returns an empty/zeroed DataFrame (recoverable — show table without scores), `foe_buildings/tabs/city_analysis.py` logs and continues (best-effort — partial results acceptable). Match the pattern of the surrounding code when adding new error paths; a unification refactor is tracked as TODO #019.
+- **QI Optimizer** tab is commented out in `foe_buildings/app.py` — dead code pending evaluation (TODO #038). Do not enable without completing the module.
+- **`foe_buildings/i18n/locales/fr/messages.json`** exists but `foe_buildings/i18n/locales/en/messages.json` does not — asymmetry tracked as TODO #035.
 
 ---
 
 ## Running Tests
 
-There is currently no test suite beyond `test.py` (ad-hoc / exploratory). When adding tests, place them in a `tests/` directory and use `pytest`.
+```bash
+.venv/bin/python -m pytest tests/ -v
+```
+
+Test files:
+- `tests/test_c1_normalisation.py` — C1 normalised scoring, era stats, source code integrity checks
+- `tests/test_calculations.py` — scoring engine unit tests (per-square, era stats, army combination)
+- `tests/test_config.py` — config integrity checks (era maps, session key uniqueness)
+- `tests/conftest.py` — shared fixtures (sample buildings DataFrame)

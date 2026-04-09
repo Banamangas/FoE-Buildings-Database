@@ -4,10 +4,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from typing import List
 import numpy as np
-import config
-import translations
-import ui_components
-import building_images
+from foe_buildings import config
+from foe_buildings import i18n as translations
+from foe_buildings.ui import grid as ui_components
+from foe_buildings.ui import images as building_images
 
 logger = config.logger
 

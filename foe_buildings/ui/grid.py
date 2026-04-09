@@ -9,7 +9,7 @@ from PIL import Image
 from st_aggrid import GridOptionsBuilder, JsCode
 
 # Import configurations and translations
-from config import (
+from foe_buildings.config import (
     ASSETS_PATH,
     ICON_EXCLUDED_COLUMNS,
     PERCENTAGE_COLUMNS,
@@ -18,7 +18,7 @@ from config import (
     COL_EVENT,
     COL_WEIGHTED_EFFICIENCY,
 )
-from translations import translate_column  # Import the specific function
+from foe_buildings.i18n import translate_column  # Import the specific function
 
 
 # --- Icon Handling ---

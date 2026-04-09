@@ -2,8 +2,8 @@ import json
 
 import pandas as pd
 
-import calculations
-from config import ADDITIVE_METRICS, C1_SCORE_MULTIPLIER
+from foe_buildings.data import calculations
+from foe_buildings.config import ADDITIVE_METRICS, C1_SCORE_MULTIPLIER
 
 
 def test_unit_columns_in_additive_metrics():
@@ -35,7 +35,7 @@ def test_unscored_boost_cols_in_additive_metrics():
 
 def test_additive_metrics_subset_of_weightable_columns():
     """Every scoring column must also have a weight slider and era stat."""
-    from config import WEIGHTABLE_COLUMNS
+    from foe_buildings.config import WEIGHTABLE_COLUMNS
 
     for col in ADDITIVE_METRICS:
         assert (
@@ -49,7 +49,7 @@ def test_c1_score_multiplier_exists():
 
 
 def test_scoring_mode_session_key_exists():
-    from config import SessionKeys
+    from foe_buildings.config import SessionKeys
 
     assert hasattr(SessionKeys, "SCORING_MODE")
     assert SessionKeys.SCORING_MODE == "scoring_mode"
@@ -166,33 +166,37 @@ def test_c1_zero_value_building_scores_zero():
 
 
 def test_app_passes_era_stats_to_efficiency_calculation():
-    """app.py must pass era_stats_df keyword to calculate_direct_weighted_efficiency."""
-    with open("app.py", "r") as f:
+    """foe_buildings/app.py must pass era_stats_df keyword to calculate_direct_weighted_efficiency."""
+    with open("foe_buildings/app.py", "r") as f:
         source = f.read()
     assert (
         "era_stats_df=" in source
-    ), "app.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
+    ), "foe_buildings/app.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
 
 
 def test_app_has_scoring_mode_toggle():
-    """app.py must include the scoring mode radio widget."""
-    with open("app.py", "r") as f:
+    """foe_buildings/app.py must include the scoring mode radio widget."""
+    with open("foe_buildings/app.py", "r") as f:
         source = f.read()
-    assert "scoring_mode_radio" in source, "scoring_mode_radio key not found in app.py"
-    assert "SCORING_MODE" in source, "SCORING_MODE not referenced in app.py"
+    assert (
+        "scoring_mode_radio" in source
+    ), "scoring_mode_radio key not found in foe_buildings/app.py"
+    assert (
+        "SCORING_MODE" in source
+    ), "SCORING_MODE not referenced in foe_buildings/app.py"
 
 
 def test_city_analysis_passes_era_stats():
-    with open("city_analysis.py", "r") as f:
+    with open("foe_buildings/tabs/city_analysis.py", "r") as f:
         source = f.read()
     assert (
         "era_stats_df=" in source
-    ), "city_analysis.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
+    ), "foe_buildings/tabs/city_analysis.py does not pass era_stats_df to calculate_direct_weighted_efficiency"
 
 
 def test_app_has_scoring_explanation_expander():
-    """app.py must include the scoring explanation expander."""
-    with open("app.py", "r") as f:
+    """The weights subtab must include the scoring explanation expander."""
+    with open("foe_buildings/tabs/building_analysis/weights.py", "r") as f:
         source = f.read()
     assert "scoring_explanation_title" in source
     assert "scoring_explanation_normalised_body" in source
@@ -202,7 +206,7 @@ def test_app_has_scoring_explanation_expander():
 def test_translation_keys_exist():
     """Both EN and FR translation files must have the 3 scoring explanation keys."""
     for lang in ("en", "fr"):
-        with open(f"translations/{lang}/ui.json", "r") as f:
+        with open(f"foe_buildings/i18n/locales/{lang}/ui.json", "r") as f:
             data = json.load(f)
         assert (
             "scoring_explanation_title" in data

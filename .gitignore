@@ -54,7 +54,7 @@ cover/
 # Translations
 *.mo
 *.pot
-translations/to_be_translated_building_names.json
+foe_buildings/i18n/locales/to_be_translated_building_names.json
 video_script.md
 ENHANCEMENT_SUMMARY.md
 DATA_VISUALIZATION_IMPLEMENTATION.md
