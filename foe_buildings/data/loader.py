@@ -17,7 +17,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from config import get_api_config, logger
+from foe_buildings.config import get_api_config, logger
 
 _API_TIMEOUT = 30  # seconds per request
 _PAGE_SIZE = 1000  # max page size allowed by the API
