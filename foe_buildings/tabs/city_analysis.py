@@ -4,9 +4,9 @@ import json
 from io import BytesIO
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
-import config
-import translations
-import calculations
+from foe_buildings import config
+from foe_buildings import i18n as translations
+from foe_buildings.data import calculations
 
 # Use logger from config
 logger = config.logger
@@ -980,7 +980,7 @@ def render_city_analysis_tab(
 
                 # Configure AgGrid for city analysis using existing ui_components
                 from st_aggrid import AgGrid, AgGridTheme, ColumnsAutoSizeMode
-                import ui_components
+                from foe_buildings.ui import grid as ui_components
 
                 # Calculate efficiency range for heatmap (if Weighted Efficiency exists)
                 eff_min = (
