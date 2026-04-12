@@ -190,3 +190,6 @@ cython_debug/
 
 # Docs (local only, not tracked)
 docs/
+
+# Scripts (local only, not tracked)
+scripts/

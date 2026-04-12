@@ -4,6 +4,14 @@ A Streamlit web app for analysing and comparing buildings from Forge of Empires.
 
 ## Quick Start
 
+With `uv` (recommended):
+
+```bash
+uv run streamlit run app.py
+```
+
+Or with pip:
+
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
