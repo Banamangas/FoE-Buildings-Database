@@ -87,12 +87,13 @@ foe_buildings/
 │   │   └── qi_boosts.py             — QI Boosts Analysis subtab
 │   ├── building_details.py          — Per-building stats and images
 │   ├── city_analysis.py             — Building recommendations for player city context
-│   └── visualizations.py           — Charts, heatmaps, building comparison, greedy optimizer
+│   └── visualizations.py            — Charts, heatmaps, building comparison, greedy optimizer
 └── ui/
     ├── grid.py                      — AG-Grid config, column formatters, heatmap styling
     ├── filters.py                   — AND/OR advanced filter logic
     ├── columns.py                   — Sidebar column group toggles and presets
     ├── images.py                    — ForgeHX asset ID → CDN image URL resolution
+    ├── kofi.py                      — Ko-Fi widget integration module
     └── styles/
         └── tabs.css                 — CSS for tab-styled radio button navigation
 tests/
