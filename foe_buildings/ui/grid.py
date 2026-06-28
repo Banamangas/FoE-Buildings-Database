@@ -352,6 +352,11 @@ def build_grid_options(
         if max_width is not None:
             base_config["maxWidth"] = max_width
 
+        # Pin the building name column to the left so it stays visible while
+        # horizontal-scrolling through the other columns.
+        if col == COL_NAME:
+            base_config["pinned"] = "left"
+
         # --- Apply percentage formatter ---
         if col in PERCENTAGE_COLUMNS:
             base_config["valueFormatter"] = PERCENTAGE_FORMATTER
