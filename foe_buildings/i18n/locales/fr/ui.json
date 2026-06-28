@@ -1,6 +1,6 @@
 {
     "title": "Base de données des bâtiments de Forge of Empires",
-    "description": "Analysez et comparez les bâtiments de Forge of Empires. \n- Toutes les productions aléatoires ont été arrondies à leur production quotidienne équivalente. \n- Les productions de fragments de consommables ont été transformées en unités de consommables (Ex: 10 fragments de Pack de motivation de masse = 0.67 Pack de motivation de masse)",
+    "description": "Analysez et comparez les bâtiments de Forge of Empires. \n- Toutes les productions aléatoires ont été arrondies à leur production quotidienne équivalente. \n- Les productions de fragments de consommables ont été transformées en unités de consommables (Ex: 10 fragments de Pack de motivation de masse = 0.33 Pack de motivation de masse)",
     "filters": "Filtres",
     "select_language": "Sélectionner la langue",
     "search_label": "Rechercher par nom",
