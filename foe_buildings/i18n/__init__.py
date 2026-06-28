@@ -1,7 +1,7 @@
 import json
 import os
 from functools import lru_cache
-from typing import Dict
+from typing import Dict, Optional
 from re import sub
 
 from foe_buildings.config import ERAS_DICT, logger
@@ -109,6 +109,48 @@ def translate_building_name(name: str, lang_code: str) -> str:
             TO_BE_TRANSLATED_BUILDING_NAMES[lang_code][name] = name
 
     return name  # Return original if no valid translation found
+
+
+def translate_building_name_by_asset(
+    asset_id: str, lang_code: str, fallback_name: Optional[str] = None
+) -> str:
+    """Translate a building name using its asset_id as the primary lookup key.
+
+    The ``/building-names`` API endpoint (cached ~23 h via
+    ``foe_buildings.data.loader.get_building_name_translations``) is the
+    preferred source: it is keyed by asset_id (e.g. ``W_MultiAge_HAL19A1``)
+    and carries every supported language per entry. If the API map has no
+    entry for ``asset_id`` (or the fetch failed and we got an empty dict),
+    fall back to the file-based ``building_names.json`` lookup using
+    ``fallback_name`` (English display name keyed).
+
+    Args:
+        asset_id: The building's asset_id (e.g. ``W_MultiAge_HAL19A1``).
+        lang_code: Target language code (e.g. ``"en"``, ``"fr"``).
+        fallback_name: English display name to use as a file-based fallback
+            key when ``asset_id`` is unknown. If None, only the API map is
+            consulted.
+
+    Returns:
+        Translated display name, or ``fallback_name`` (or ``asset_id`` when
+        ``fallback_name`` is None) when neither source resolves the lookup.
+    """
+    if asset_id:
+        # Loader is imported lazily to keep i18n import-time side effects light
+        # (loading i18n must not require Streamlit to be configured).
+        from foe_buildings.data import loader as _loader
+
+        api_map = _loader.get_building_name_translations() or {}
+        entry = api_map.get(asset_id)
+        if entry:
+            name = entry.get(lang_code) or entry.get("en")
+            if name:
+                return name
+
+    if fallback_name is not None:
+        return translate_building_name(fallback_name, lang_code)
+
+    return asset_id or ""
 
 
 # --- Event Translations ---

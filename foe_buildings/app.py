@@ -37,9 +37,35 @@ def apply_translations(df: pd.DataFrame, language_code: str) -> pd.DataFrame:
     df_translated = df.copy()
 
     if config.COL_NAME in df_translated.columns:
-        df_translated[config.COL_NAME] = df_translated[config.COL_NAME].map(
-            lambda name: translations.translate_building_name(name, language_code)
-        )
+        # Building names come from the /building-names API endpoint, keyed by
+        # asset_id. Fallback to the on-disk building_names.json (keyed by the
+        # English display name) for any row whose asset_id is missing or has
+        # no API entry — this keeps resilience if the API is unreachable.
+        api_name_map = data_loader.get_building_name_translations() or {}
+        if api_name_map:
+            lang_lookup = {
+                aid: (langs.get(language_code) or langs.get("en"))
+                for aid, langs in api_name_map.items()
+                if (langs.get(language_code) or langs.get("en"))
+            }
+        else:
+            lang_lookup = {}
+
+        has_asset_id = config.COL_ASSET_ID in df_translated.columns and lang_lookup
+        if has_asset_id:
+            api_translated = df_translated[config.COL_ASSET_ID].map(lang_lookup)
+            file_translated = df_translated[config.COL_NAME].map(
+                lambda n: translations.translate_building_name(n, language_code)
+            )
+            # Prefer API translations; fall back to file-based where the API
+            # had no entry for that asset_id.
+            df_translated[config.COL_NAME] = api_translated.combine_first(
+                file_translated
+            )
+        else:
+            df_translated[config.COL_NAME] = df_translated[config.COL_NAME].map(
+                lambda n: translations.translate_building_name(n, language_code)
+            )
     else:
         logger.error("'name' column missing after data load.")
 
