@@ -81,21 +81,6 @@ COLUMN_GROUPS = {
             "guild_goods",
         ]
     },
-    "military": {
-        "columns": [
-            "rogues",
-            "fast_units",
-            "heavy_units",
-            "ranged_units",
-            "artillery_units",
-            "light_units",
-            "next_age_fast_units",
-            "next_age_heavy_units",
-            "next_age_ranged_units",
-            "next_age_artillery_units",
-            "next_age_light_units",
-        ]
-    },
     "base_army": {
         "columns": ["Red Attack", "Red Defense", "Blue Attack", "Blue Defense"]
     },
@@ -129,6 +114,21 @@ COLUMN_GROUPS = {
             "QI Units at start",
             "QA per hour",
             "QA Capacity",
+        ]
+    },
+    "military": {
+        "columns": [
+            "rogues",
+            "fast_units",
+            "heavy_units",
+            "ranged_units",
+            "artillery_units",
+            "light_units",
+            "next_age_fast_units",
+            "next_age_heavy_units",
+            "next_age_ranged_units",
+            "next_age_artillery_units",
+            "next_age_light_units",
         ]
     },
     "boosts": {
