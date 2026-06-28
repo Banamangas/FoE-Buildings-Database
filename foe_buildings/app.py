@@ -16,6 +16,7 @@ from foe_buildings.data.calculations import (
 from foe_buildings.ui import columns as column_selector
 from foe_buildings.ui import filters as advanced_filters
 from foe_buildings.ui.images import get_cached_image_manager
+from foe_buildings.ui.kofi import render_kofi_widget
 from foe_buildings.ui.styles import load_tab_css
 from foe_buildings.tabs.building_analysis import render_building_analysis
 from foe_buildings.tabs.building_details import render_building_details
@@ -112,6 +113,7 @@ def main() -> None:
     # --- App Title and Description ---
     st.title(translations.get_text("title", lang_code))
     st.markdown(translations.get_text("description", lang_code))
+    render_kofi_widget(column_position="left")
 
     # --- Data Loading (Cached) ---
     # load_and_process_data() fetches from the VPS API and caches for 23 hours.
@@ -502,3 +504,5 @@ def main() -> None:
             )
             df_viz_display = calculations.apply_per_square(df_viz_display, divisor_col)
         render_data_visualizations(df_viz_display, lang_code, show_per_square)
+
+    render_kofi_widget()
