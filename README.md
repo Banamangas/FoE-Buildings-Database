@@ -157,6 +157,7 @@ graph TD
 | `filters.py` | Renders the AND/OR advanced filter panel with numeric and categorical operators; returns a filtered DataFrame | `AdvancedFilterManager`, `render_advanced_filters()` |
 | `columns.py` | Sidebar column group toggles and preset selection; tracks the active column set in session state | `ColumnSelector`, `render_enhanced_column_selector()` |
 | `images.py` | Resolves ForgeHX asset IDs to CDN image URLs; results are cached per session | `get_cached_image_manager()` |
+| `kofi.py` | Loads the Ko-Fi widget; returns a widget integration aligned either left, center or right | `render_kofi_widget()` |
 | `styles/tabs.css` | CSS that styles the horizontal radio buttons as a tab bar | — |
 
 ### Tab layer — `foe_buildings/tabs/`
