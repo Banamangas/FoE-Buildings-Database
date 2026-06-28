@@ -139,7 +139,7 @@ def main() -> None:
     # --- App Title and Description ---
     st.title(translations.get_text("title", lang_code))
     st.markdown(translations.get_text("description", lang_code))
-    render_kofi_widget(column_position="left")
+    render_kofi_widget(column_position="left", language=lang_code)
 
     # --- Data Loading (Cached) ---
     # load_and_process_data() fetches from the VPS API and caches for 23 hours.
@@ -531,4 +531,4 @@ def main() -> None:
             df_viz_display = calculations.apply_per_square(df_viz_display, divisor_col)
         render_data_visualizations(df_viz_display, lang_code, show_per_square)
 
-    render_kofi_widget()
+    render_kofi_widget(language=lang_code)
