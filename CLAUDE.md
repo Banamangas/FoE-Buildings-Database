@@ -33,6 +33,7 @@ A Streamlit web app for analyzing and comparing Forge of Empires buildings. Play
 | `foe_buildings/ui/filters.py` | AND/OR advanced filter logic with numeric/categorical operators |
 | `foe_buildings/ui/columns.py` | Sidebar column group toggles and preset selection |
 | `foe_buildings/ui/images.py` | ForgeHX asset ID → CDN image URL resolution |
+| `foe_buildings/ui/kofi.py` | Ko-Fi Widget integration module |
 | `foe_buildings/ui/styles/tabs.css` | CSS for tab-styled radio buttons |
 | `foe_buildings/i18n/__init__.py` | Translation engine: JSON loading, fallback, all translate_* functions |
 | `foe_buildings/i18n/locales/{en,fr}/` | Translation JSON files per language |

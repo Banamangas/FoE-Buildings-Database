@@ -26,18 +26,24 @@ _CACHE_TTL = (
 )
 
 
-def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+def _make_request(
+    endpoint: str,
+    params: Optional[Dict] = None,
+    fatal: bool = True,
+) -> Optional[Dict[str, Any]]:
     """Make an authenticated GET request to the API.
 
     Args:
         endpoint: Path relative to the API root (e.g. '/buildings').
         params: Optional query parameters.
+        fatal: When True (default), a failure halts the app via st.stop() —
+            used for endpoints the app cannot run without (e.g. /buildings).
+            When False, the error is logged and None is returned so the caller
+            can degrade gracefully (e.g. optional building-name translations).
 
     Returns:
-        Parsed JSON response as a dict.
-
-    Raises:
-        Calls st.stop() on authentication or server errors.
+        Parsed JSON response as a dict, or None when fatal=False and the
+        request failed.
     """
     api_url, api_key = get_api_config()
     url = f"{api_url}/{endpoint.lstrip('/')}"
@@ -50,6 +56,9 @@ def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as e:
+        if not fatal:
+            logger.warning(f"Non-fatal API error fetching {endpoint}: {e}")
+            return None
         status = e.response.status_code
         if status == 401:
             st.error("Invalid API key. Please check your secrets.toml configuration.")
@@ -64,6 +73,9 @@ def _make_request(endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any
             st.error(f"API error {status}: {e}")
         st.stop()
     except requests.exceptions.RequestException as e:
+        if not fatal:
+            logger.warning(f"Non-fatal connection error fetching {endpoint}: {e}")
+            return None
         st.error(f"Failed to connect to API: {e}")
         st.stop()
 
@@ -118,6 +130,26 @@ def load_and_process_data() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_CACHE_TTL)
+def get_building_name_translations() -> Dict[str, Dict[str, str]]:
+    """Fetch building-name translations keyed by asset_id.
+
+    Endpoint: GET /building-names (X-API-Key auth).
+    Returns:
+        ``{asset_id: {"en": "...", "fr": "...", ...}, ...}`` — one entry per
+        building, mapping each supported language code to its display name.
+        Empty dict if the API returned nothing or the request failed (the
+        fetch is non-fatal; callers fall back to the on-disk translation JSON).
+
+    Cached for 23 hours (same TTL as ``load_and_process_data``) so building
+    names refresh on the same daily cadence as the building data itself.
+    """
+    data = _make_request("/building-names", fatal=False)
+    if not data or not data.get("buildings"):
+        return {}
+    return data["buildings"]
+
+
+@st.cache_data(ttl=_CACHE_TTL)
 def get_forgehx_data() -> Dict[str, str]:
     """Fetch the ForgeHX image hash map from the API.
 
@@ -144,4 +176,5 @@ def clear_cache():
     """Clear all cached API data. Call this after a known data update."""
     load_and_process_data.clear()
     get_forgehx_data.clear()
+    get_building_name_translations.clear()
     st.success("Cache cleared — data will be refreshed on next load.")

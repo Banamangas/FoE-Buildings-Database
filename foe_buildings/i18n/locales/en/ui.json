@@ -1,6 +1,6 @@
 {
     "title": "FoE Building Database",
-    "description": "Analyze and compare buildings from Forge of Empires. \n- All random production have been averaged out to their daily equivalent. \n- Consumable fragments have been converted to consumable units (Ex: 10 fragments of Mass Self-Aid kit = 0.67 Mass Self-Aid kit)",
+    "description": "Analyze and compare buildings from Forge of Empires. \n- All random production have been averaged out to their daily equivalent. \n- Consumable fragments have been converted to consumable units (Ex: 10 fragments of Mass Self-Aid kit = 0.33 Mass Self-Aid kit)",
     "filters": "Filters",
     "select_language": "Select Language",
     "search_label": "Search by name",

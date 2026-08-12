@@ -155,7 +155,7 @@ class ColumnSelector:
         # Initialize session state for selected columns if not exists
         if config.SessionKeys.SELECTED_COLUMNS_SET not in st.session_state:
             # Default selection
-            default_columns = config.COLUMN_PRESETS["basic_analysis"]["columns"]
+            default_columns = config.COLUMN_PRESETS["default"]["columns"]
             st.session_state[config.SessionKeys.SELECTED_COLUMNS_SET] = set(
                 default_columns + [config.COL_NAME]
             )
