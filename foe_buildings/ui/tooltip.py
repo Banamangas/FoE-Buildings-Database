@@ -472,7 +472,7 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     if ranking_points:
         rows.append(
             TooltipRow(
-                icon=_icon("ranking_points", translations.get_text("ranking_points", lang_code)),
+                icon=_icon("rank", translations.get_text("ranking_points", lang_code)),
                 label=translations.get_text("ranking_points", lang_code),
                 value=str(ranking_points),
             )

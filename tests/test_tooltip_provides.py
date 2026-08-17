@@ -107,7 +107,9 @@ def test_provides_ranking_points():
         }
     }
     rows = _render_provides(entity, "en")
-    assert any(r.label == "Ranking Points" and r.value == "890" for r in rows)
+    row = next(r for r in rows if r.label == "Ranking Points")
+    assert row.value == "890"
+    assert row.icon.key == "rank"
 
 
 def test_provides_non_army_boosts():
