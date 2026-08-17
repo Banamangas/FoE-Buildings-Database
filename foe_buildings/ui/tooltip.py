@@ -200,6 +200,89 @@ def _render_resources(resources: Dict[str, Any], lang_code: str) -> List[Tooltip
     return rows
 
 
+def _render_chain_set(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    rows = []
+    chain = entity.get("components", {}).get("AllAge", {}).get("chain")
+    if chain:
+        chain_id = chain.get("chainId")
+        if chain_id:
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(f"{chain_id}.png"),
+                    label=translations.get_text("chain", lang_code),
+                    value=chain_id,
+                )
+            )
+    return rows
+
+
+def _render_ally_rooms(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    rows = []
+    rooms = entity.get("components", {}).get("AllAge", {}).get("ally", {}).get("rooms", [])
+    for room in rooms:
+        rows.append(
+            TooltipRow(
+                icon=resolve_icon("ally_room.png"),
+                label=translations.get_text("ally_room", lang_code),
+                value=room.get("allyType", ""),
+            )
+        )
+    return rows
+
+
+def _render_traits(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    rows = []
+    all_age = entity.get("components", {}).get("AllAge", {})
+    if all_age.get("cityLimit"):
+        rows.append(
+            TooltipRow(
+                icon=None,
+                label=translations.get_text("trait", lang_code),
+                value=translations.get_text("unique_building", lang_code),
+            )
+        )
+
+    flags = all_age.get("flags", {}).get("flags", 0)
+    if flags & 4:
+        rows.append(
+            TooltipRow(
+                icon=None,
+                label=translations.get_text("trait", lang_code),
+                value=translations.get_text("upgrades_automatically", lang_code),
+            )
+        )
+    if flags & 32:
+        rows.append(
+            TooltipRow(
+                icon=None,
+                label=translations.get_text("trait", lang_code),
+                value=translations.get_text("fsp_disabled", lang_code),
+            )
+        )
+    return rows
+
+
+def _render_costs(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    rows = []
+    resources = (
+        entity.get("components", {})
+        .get("AllAge", {})
+        .get("buildResourcesRequirement", {})
+        .get("cost", {})
+        .get("resources", {})
+    )
+    for resource, amount in resources.items():
+        if amount:
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(f"{resource}.png"),
+                    label=translations.translate_column(resource, lang_code),
+                    value=str(amount),
+                )
+            )
+    return rows
+
+
 def _render_product(product: Dict[str, Any], lookup: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
     """Render a single product. Returns zero or more rows."""
     rows = []
