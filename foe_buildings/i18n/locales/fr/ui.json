@@ -288,6 +288,7 @@
     "qi_optimizer": "Optimiseur IQ",
     "qi_optimizer_help": "Trouvez les combinaisons optimales de bâtiments pour atteindre vos bonus IQ cibles. Cet outil calculera toutes les combinaisons possibles qui répondent à vos exigences et les classera par efficacité.",
     "ranking_points": "Points de classement",
+    "random_production": "Production aléatoire",
     "radar_chart": "Graphique Radar",
     "reminder_city_context": "**Remarque** : Si vous entrez des poids pour la production, pensez à mettre à jour les boosts et la production de votre cité dans la section 'Contexte de votre cité' pour avoir des résultats optimaux et réalistes.",
     "remove_filter": "Supprimer le Filtre",

@@ -1,12 +1,18 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
+import html
 import re
 from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
 from foe_buildings import i18n as translations
-from foe_buildings.ui.tooltip_icons import ResolvedIcon, boost_icon_key, resolve_game_icon
+from foe_buildings.ui.styles import load_tooltip_css
+from foe_buildings.ui.tooltip_icons import (
+    ResolvedIcon,
+    boost_icon_key,
+    resolve_game_icon,
+)
 
 
 _BOOST_LABEL_KEYS = {
@@ -267,31 +273,106 @@ def _resource_display(resource: str, lang_code: str) -> tuple[str, str]:
     return label, _RESOURCE_ICON_KEYS.get(resource, resource)
 
 
-def _icon(
-    key: str, label: str, entity_asset_id: Optional[str] = None
-) -> ResolvedIcon:
+def _icon(key: str, label: str, entity_asset_id: Optional[str] = None) -> ResolvedIcon:
     return resolve_game_icon(key, label, entity_asset_id=entity_asset_id)
+
+
+def _escaped(value: object) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def _tooltip_icon_html(icon: Optional[ResolvedIcon], css_class: str) -> str:
+    if icon is None:
+        return ""
+    if icon.url is None:
+        return '<span class="tooltip-icon-missing" aria-hidden="true">?</span>'
+    accessible_name = _escaped(icon.accessible_name)
+    return (
+        f'<img src="{_escaped(icon.url)}" class="{css_class}" '
+        f'alt="{accessible_name}" title="{accessible_name}">'
+    )
+
+
+def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
+    """Return escaped HTML for one quantitative or semantic tooltip row."""
+    del lang_code
+    accessible_text = _escaped(f"{row.label}: {row.value}")
+    parts = [
+        _tooltip_icon_html(row.icon, "foe-tooltip-icon"),
+        f'<span class="foe-tooltip-value">{_escaped(row.value)}</span>',
+    ]
+    if row.suffix:
+        parts.append(f'<em class="foe-tooltip-suffix">{_escaped(row.suffix)}</em>')
+    if row.duration:
+        parts.append(
+            '<span class="foe-tooltip-duration">'
+            f"{_escaped(format_time(row.duration))}</span>"
+        )
+    parts.extend(
+        _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in row.markers
+    )
+    return (
+        f'<div class="foe-tooltip-row" aria-label="{accessible_text}" '
+        f'title="{accessible_text}">{"".join(parts)}</div>'
+    )
+
+
+def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
+    """Return escaped HTML for one independent random-production pool."""
+    accessible_text = _escaped(translations.get_text("random_production", lang_code))
+    outcomes = []
+    for outcome in group.outcomes:
+        probability = _escaped(f"{outcome.probability}%")
+        outcomes.append(
+            '<div class="tooltip-random-outcome">'
+            '<div class="tooltip-random-outcome-value">'
+            f"{_tooltip_row_html(outcome.row, lang_code)}</div>"
+            f'<span class="tooltip-random-probability">{probability}</span>'
+            "</div>"
+        )
+
+    metadata = []
+    if group.duration:
+        metadata.append(
+            '<span class="foe-tooltip-duration">'
+            f"{_escaped(format_time(group.duration))}</span>"
+        )
+    metadata.extend(
+        _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in group.markers
+    )
+    metadata_html = (
+        f'<div class="tooltip-random-metadata">{"".join(metadata)}</div>'
+        if metadata
+        else ""
+    )
+    return (
+        f'<div class="tooltip-random-group" aria-label="{accessible_text}" '
+        f'title="{accessible_text}">{metadata_html}{"".join(outcomes)}</div>'
+    )
 
 
 def render_tooltip_sections(sections: List[TooltipSection], lang_code: str) -> None:
     """Render tooltip sections with optional titles, icons, and suffixes."""
+    st.markdown(load_tooltip_css(), unsafe_allow_html=True)
     for section in sections:
         with st.container():
             if section.header:
-                st.markdown(f"### {section.header}")
+                st.markdown(f"### {_escaped(section.header)}")
             if section.image_url:
                 st.image(section.image_url, width="content")
             if section.title:
-                st.markdown(f"**{section.title}**")
+                title = section.title
+                if section.shared_duration:
+                    title = f"{title} ({format_time(section.shared_duration)})"
+                st.markdown(f"**{_escaped(title)}**")
             for row in section.rows:
-                icon_html = (
-                    f'<img src="{row.icon.url}" alt="{row.icon.accessible_name}" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;">'
-                    if row.icon and row.icon.url
-                    else ""
-                )
-                suffix = f" <em>{row.suffix}</em>" if row.suffix else ""
                 st.markdown(
-                    f"{icon_html}{row.label}: **{row.value}**{suffix}",
+                    _tooltip_row_html(row, lang_code),
+                    unsafe_allow_html=True,
+                )
+            for group in section.random_groups:
+                st.markdown(
+                    _random_group_html(group, lang_code),
                     unsafe_allow_html=True,
                 )
 
@@ -473,7 +554,9 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     if population:
         rows.append(
             TooltipRow(
-                icon=_icon("population", translations.translate_column("Population", lang_code)),
+                icon=_icon(
+                    "population", translations.translate_column("Population", lang_code)
+                ),
                 label=translations.translate_column("Population", lang_code),
                 value=str(population),
             )
@@ -544,9 +627,7 @@ def _render_chain_set(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow
             if chain_id:
                 rows.append(
                     TooltipRow(
-                        icon=_icon(
-                            chain_id, translations.get_text("chain", lang_code)
-                        ),
+                        icon=_icon(chain_id, translations.get_text("chain", lang_code)),
                         label=translations.get_text("chain", lang_code),
                         value=chain_id,
                         show_label=True,
@@ -817,9 +898,7 @@ def _render_random_product(
         probability = int(drop_chance * 100)
         outcomes.extend(RandomOutcome(row=row, probability=probability) for row in rows)
 
-    markers = (
-        [_motivated_marker(lang_code)] if product.get("onlyWhenMotivated") else []
-    )
+    markers = [_motivated_marker(lang_code)] if product.get("onlyWhenMotivated") else []
     return RandomProductionGroup(outcomes=outcomes, markers=markers)
 
 
