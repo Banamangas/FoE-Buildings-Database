@@ -148,7 +148,15 @@ def resolve_game_icon(
 
 def resolve_icon(icon_name: Optional[str]) -> Optional[str]:
     key = (icon_name or "").removesuffix(".png")
-    return resolve_game_icon(key, key, asset_map={}).url if key else None
+    if not key:
+        return None
+
+    resolved = resolve_game_icon(key, key, asset_map={}).url
+    if resolved or key.startswith("att_def_boost_"):
+        return resolved
+
+    encoded = get_icon_base64(key)
+    return f"data:image/png;base64,{encoded}" if encoded else None
 
 
 def resolve_boost_icon(boost_type: str, feature: str = "all") -> Optional[str]:

@@ -56,6 +56,22 @@ def test_provides_static_resources():
     assert any(r.label == "Medals" and r.value == "100" for r in rows)
 
 
+def test_provides_resource_row_keeps_existing_local_icon():
+    entity = {
+        "components": {
+            "AllAge": {
+                "staticResources": {"resources": {"resources": {"supplies": 100}}}
+            }
+        }
+    }
+
+    rows = _render_provides(entity, "en")
+
+    row = next(row for row in rows if row.label == "Supplies")
+    assert row.icon is not None
+    assert row.icon.startswith("data:image/png;base64,")
+
+
 def test_provides_population_and_happiness():
     entity = {
         "components": {

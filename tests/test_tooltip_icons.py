@@ -1,3 +1,5 @@
+import pytest
+
 from foe_buildings.ui import tooltip_icons
 
 
@@ -63,3 +65,34 @@ def test_resolve_game_icon_keeps_missing_icon_metadata():
     )
     assert result.url is None
     assert result.accessible_name == "Unknown reward"
+
+
+@pytest.mark.parametrize(
+    "icon_name",
+    [
+        "supplies.png",
+        "special_goods.png",
+        "next_age_goods.png",
+        "prev_age_goods.png",
+        "red_attack.png",
+    ],
+)
+def test_resolve_icon_keeps_existing_local_filenames(icon_name):
+    result = tooltip_icons.resolve_icon(icon_name)
+    assert result is not None
+    assert result.startswith("data:image/png;base64,")
+
+
+def test_resolve_icon_keeps_empty_input_empty():
+    assert tooltip_icons.resolve_icon(None) is None
+    assert tooltip_icons.resolve_icon("") is None
+
+
+def test_resolve_icon_excludes_generated_combined_boost_icons():
+    assert tooltip_icons.resolve_icon("att_def_boost_attacker.png") is None
+
+
+def test_resolve_boost_icon_falls_back_to_base_local_icon():
+    result = tooltip_icons.resolve_boost_icon("att_boost_attacker", "guild_raids")
+    assert result is not None
+    assert result.startswith("data:image/png;base64,")
