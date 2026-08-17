@@ -13,3 +13,11 @@
 - Preserve user-owned or explicitly scoped repository files. If project instructions
   and a prior cleanup request conflict, follow the latest explicit project
   instructions and keep task metadata isolated from product code.
+- When reproducing another application's icons, trace the complete runtime resolver
+  before extracting sprite coordinates. Forge Hammer's building tooltip resolves raw
+  game keys through ForgeHX/CDN paths; `productions.png` belongs to a separate generic
+  production-filter UI and is not the tooltip's icon source.
+- Preserve raw domain keys and their exact feature suffixes when resolving assets.
+  Do not invent aliases such as `_ge` or `_qi` when the reference uses `_gex` and
+  `_gr`; add contract tests for representative production, boost, reward, and trait
+  keys before wiring the resolver into rendering.

@@ -61,7 +61,9 @@ Forge Hammer where the raw schema represents a category rather than an asset key
 - `era_goods` -> `all_goods_of_age`
 - next-, previous-, and current-age random goods -> their corresponding chest icon
 - treasury goods -> the corresponding treasury-goods icon
-- units -> unit class, with `rogue` and champion/chivalry handling
+- units -> `rogue` and champion/chivalry where deterministic; otherwise exact unit
+  ID first and generic military fallback because the current API exposes neither
+  `unit_types` metadata nor `unitClass` in building products
 - fragment rewards -> assembled reward icon plus `icon_tooltip_fragment`
 - boost feature suffixes: all `""`, battleground `_gbg`, guild expedition `_gex`,
   and guild raids `_gr`
