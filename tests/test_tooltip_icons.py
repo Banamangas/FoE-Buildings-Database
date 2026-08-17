@@ -1,49 +1,65 @@
 from foe_buildings.ui import tooltip_icons
 
 
-def test_feature_slugs():
-    assert tooltip_icons.FEATURE_SLUGS["battleground"] == "_gbg"
-    assert tooltip_icons.FEATURE_SLUGS["guild_expedition"] == "_ge"
-    assert tooltip_icons.FEATURE_SLUGS["guild_raids"] == "_qi"
+def test_feature_suffixes_match_forge_hammer():
+    assert tooltip_icons.FEATURE_SUFFIXES == {
+        "all": "",
+        "battleground": "_gbg",
+        "guild_expedition": "_gex",
+        "guild_raids": "_gr",
+    }
 
 
-def test_get_boost_icon_filename_base():
-    assert tooltip_icons.get_boost_icon_filename("att_boost_attacker") == "red_attack.png"
-    assert tooltip_icons.get_boost_icon_filename("def_boost_attacker") == "red_defense.png"
-    assert tooltip_icons.get_boost_icon_filename("att_boost_defender") == "blue_attack.png"
-    assert tooltip_icons.get_boost_icon_filename("def_boost_defender") == "blue_defense.png"
+def test_boost_icon_key_keeps_raw_type_and_exact_feature_suffix():
+    assert tooltip_icons.boost_icon_key(
+        "att_def_boost_attacker_defender", "guild_expedition"
+    ) == "att_def_boost_attacker_defender_gex"
+    assert tooltip_icons.boost_icon_key(
+        "att_def_boost_defender", "guild_raids"
+    ) == "att_def_boost_defender_gr"
 
 
-def test_get_boost_icon_filename_combined():
-    assert tooltip_icons.get_boost_icon_filename("att_def_boost_attacker") == "att_def_boost_attacker.png"
-    assert tooltip_icons.get_boost_icon_filename("att_def_boost_defender") == "att_def_boost_defender.png"
+def test_icon_candidates_match_forge_hammer_order():
+    assert tooltip_icons.icon_candidates("selection_kit_2")[:6] == [
+        "/shared/icons/selection_kit_2.png",
+        "/shared/gui/upgrade/upgrade_icon_selection_kit_2.png",
+        "/shared/icons/selection_kit.png",
+        "/shared/icons/goods/icon_fine_selection_kit_2.png",
+        "/shared/icons/reward_icons/reward_icon_selection_kit_2.png",
+        "/shared/icons/reward_icons/reward_icon_selection_kit.png",
+    ]
 
 
-def test_get_boost_icon_filename_with_feature():
-    assert tooltip_icons.get_boost_icon_filename("att_boost_attacker", "battleground") == "red_gbg_attack.png"
-    assert tooltip_icons.get_boost_icon_filename("att_def_boost_attacker", "battleground") == "att_def_boost_attacker_gbg.png"
+def test_icon_candidates_add_entity_asset_fallback():
+    assert tooltip_icons.icon_candidates(
+        "W_Test_2", entity_asset_id="W_MultiAge_Test"
+    )[-1] == "/city/buildings/W_SS_MultiAge_Test.png"
 
 
-def test_get_boost_icon_filename_unknown():
-    assert tooltip_icons.get_boost_icon_filename("unknown_boost") is None
+def test_direct_asset_path_is_not_rewritten():
+    path = "/shared/gui/buffbar/buffbar_icon_buff_unconnected.png"
+    assert tooltip_icons.icon_candidates(path) == [path]
 
 
-def test_resolve_icon_returns_data_uri():
-    result = tooltip_icons.resolve_icon("red_attack.png")
-    assert result is not None
-    assert result.startswith("data:image/png;base64,")
+def test_resolve_game_icon_uses_first_matching_forgehx_path():
+    assets = {"/shared/icons/money.png": "abc123"}
+    result = tooltip_icons.resolve_game_icon("money", "Coins", asset_map=assets)
+    assert result.key == "money"
+    assert result.accessible_name == "Coins"
+    assert result.url == (
+        "https://foezz.innogamescdn.com/assets/shared/icons/money-abc123.png"
+    )
 
 
-def test_resolve_icon_empty_input():
-    assert tooltip_icons.resolve_icon(None) is None
-    assert tooltip_icons.resolve_icon("") is None
+def test_resolve_game_icon_falls_back_to_existing_local_icon(monkeypatch):
+    monkeypatch.setattr(tooltip_icons, "get_icon_base64", lambda name: "encoded")
+    result = tooltip_icons.resolve_game_icon("money", "Coins", asset_map={})
+    assert result.url == "data:image/png;base64,encoded"
 
 
-def test_resolve_icon_missing_file():
-    assert tooltip_icons.resolve_icon("definitely_missing_icon.png") is None
-
-
-def test_resolve_boost_icon_falls_back_to_base_icon():
-    result = tooltip_icons.resolve_boost_icon("coin_production", "battleground")
-    assert result is not None
-    assert result.startswith("data:image/png;base64,")
+def test_resolve_game_icon_keeps_missing_icon_metadata():
+    result = tooltip_icons.resolve_game_icon(
+        "unknown_key", "Unknown reward", asset_map={}
+    )
+    assert result.url is None
+    assert result.accessible_name == "Unknown reward"
