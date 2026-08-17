@@ -71,6 +71,13 @@ class TooltipRow:
     suffix: Optional[str] = None
 
 
+@dataclass
+class TooltipSection:
+    title: Optional[str]
+    rows: List[TooltipRow]
+    layout: str = "normal"
+
+
 def _render_size_time_road(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
     """Render size, construction time, and road requirement rows."""
     rows = []
@@ -335,3 +342,52 @@ def _render_produces(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
                 row.value = f"{row.value} in {time_label}"
                 rows.append(row)
     return rows
+
+
+def render_building_tooltip(entity: Dict[str, Any], lang_code: str) -> List[TooltipSection]:
+    """Render a full in-game-style tooltip from a raw building entity."""
+    sections = []
+
+    size_rows = _render_size_time_road(entity, lang_code)
+    if size_rows:
+        sections.append(
+            TooltipSection(title=translations.get_text("size_time_road", lang_code), rows=size_rows)
+        )
+
+    provides = _render_provides(entity, lang_code)
+    if provides:
+        sections.append(
+            TooltipSection(title=translations.get_text("provides", lang_code), rows=provides)
+        )
+
+    produces = _render_produces(entity, lang_code)
+    if produces:
+        sections.append(
+            TooltipSection(title=translations.get_text("produces", lang_code), rows=produces)
+        )
+
+    chain_rows = _render_chain_set(entity, lang_code)
+    if chain_rows:
+        sections.append(
+            TooltipSection(title=translations.get_text("chain_set", lang_code), rows=chain_rows)
+        )
+
+    ally_rows = _render_ally_rooms(entity, lang_code)
+    if ally_rows:
+        sections.append(
+            TooltipSection(title=translations.get_text("ally_rooms", lang_code), rows=ally_rows)
+        )
+
+    costs = _render_costs(entity, lang_code)
+    if costs:
+        sections.append(
+            TooltipSection(title=translations.get_text("costs", lang_code), rows=costs)
+        )
+
+    traits = _render_traits(entity, lang_code)
+    if traits:
+        sections.append(
+            TooltipSection(title=translations.get_text("traits", lang_code), rows=traits)
+        )
+
+    return sections
