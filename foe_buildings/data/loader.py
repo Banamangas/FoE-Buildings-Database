@@ -172,6 +172,23 @@ def get_forgehx_data() -> Dict[str, str]:
     }
 
 
+@st.cache_data(ttl=_CACHE_TTL)
+def load_building_entity_lookup() -> Dict[str, Any]:
+    """Fetch the raw building entity lookup JSON from the API.
+
+    Returns a dict mapping building ID (e.g. ``W_MultiAge_HAL19A1``) to the
+    original game entity dict. Cached for 23 hours to match the daily data
+    refresh cadence.
+
+    Returns:
+        Dict[str, Any]: empty dict if the request fails or returns nothing.
+    """
+    data = _make_request("/data/download/building_entity_lookup.json", fatal=False)
+    if not data:
+        return {}
+    return data
+
+
 def clear_cache():
     """Clear all cached API data. Call this after a known data update."""
     load_and_process_data.clear()
