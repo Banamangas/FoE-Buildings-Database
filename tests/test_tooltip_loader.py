@@ -15,6 +15,26 @@ def test_load_building_entity_lookup_returns_dict():
         )
 
 
+def test_load_building_entity_lookup_normalizes_entity_list():
+    entity = {"id": "B1", "name": "Building One"}
+    with patch.object(loader, "_make_request") as mock_make_request:
+        mock_make_request.return_value = [entity]
+
+        result = loader.load_building_entity_lookup.__wrapped__()
+
+    assert result == {"B1": entity}
+
+
+def test_load_building_entity_lookup_strips_entity_identifier_prefix():
+    entity = {"identifier": "building_entity_B1", "components": {}}
+    with patch.object(loader, "_make_request") as mock_make_request:
+        mock_make_request.return_value = [entity]
+
+        result = loader.load_building_entity_lookup.__wrapped__()
+
+    assert result == {"B1": entity}
+
+
 def test_clear_cache_invalidates_building_entity_lookup():
     with patch.object(loader.load_building_entity_lookup, "clear") as mock_clear:
         loader.clear_cache()

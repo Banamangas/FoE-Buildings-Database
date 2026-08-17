@@ -40,7 +40,9 @@ def test_produces_random():
                                         {
                                             "product": {
                                                 "type": "resources",
-                                                "playerResources": {"resources": {"goods": 10}},
+                                                "playerResources": {
+                                                    "resources": {"goods": 10}
+                                                },
                                             },
                                             "dropChance": 0.5,
                                         }
@@ -62,9 +64,7 @@ def test_produces_generic_reward_resource():
         "components": {
             "AllAge": {
                 "lookup": {
-                    "rewards": {
-                        "reward_1": {"type": "resource", "subType": "medals"}
-                    }
+                    "rewards": {"reward_1": {"type": "resource", "subType": "medals"}}
                 },
                 "production": {
                     "options": [
@@ -109,3 +109,42 @@ def test_produces_generic_reward_unknown():
     }
     rows = _render_produces(entity, "en")
     assert any(r.label == "unknown_reward" for r in rows)
+
+
+def test_produces_generic_reward_uses_lookup_name_quantity():
+    entity = {
+        "components": {
+            "AllAge": {
+                "lookup": {
+                    "rewards": {
+                        "fragment_reward": {
+                            "name": "10x Fragments of Test Selection Kit",
+                            "type": "genericReward",
+                            "iconAssetName": "icon_fragment",
+                            "requiredAmount": 100,
+                        }
+                    }
+                },
+                "production": {
+                    "options": [
+                        {
+                            "time": 86400,
+                            "products": [
+                                {
+                                    "type": "genericReward",
+                                    "reward": {"id": "fragment_reward"},
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        }
+    }
+
+    rows = _render_produces(entity, "en")
+
+    assert any(
+        r.label == "Test Selection Kit fragments" and r.value == "10 in 1d"
+        for r in rows
+    )

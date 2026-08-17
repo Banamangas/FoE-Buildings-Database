@@ -32,7 +32,7 @@ def _make_request(
     params: Optional[Dict] = None,
     fatal: bool = True,
     timeout: int = _API_TIMEOUT,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[Any]:
     """Make an authenticated GET request to the API.
 
     Args:
@@ -52,9 +52,7 @@ def _make_request(
     headers = {"X-API-Key": api_key}
 
     try:
-        response = requests.get(
-            url, headers=headers, params=params, timeout=timeout
-        )
+        response = requests.get(url, headers=headers, params=params, timeout=timeout)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as e:
@@ -179,8 +177,9 @@ def load_building_entity_lookup() -> Dict[str, Any]:
     """Fetch the raw building entity lookup JSON from the API.
 
     Returns a dict mapping building ID (e.g. ``W_MultiAge_HAL19A1``) to the
-    original game entity dict. Cached for 23 hours to match the daily data
-    refresh cadence.
+    entity record. The API may serialize this file as either a mapping or a
+    list of records; both forms are normalized here. Cached for 23 hours to
+    match the daily data refresh cadence.
 
     Returns:
         Dict[str, Any]: empty dict if the request fails or returns nothing.
@@ -192,7 +191,27 @@ def load_building_entity_lookup() -> Dict[str, Any]:
     )
     if not data:
         return {}
-    return data
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        lookup = {}
+        for entity in data:
+            if not isinstance(entity, dict):
+                continue
+            building_id = entity.get("id")
+            if not building_id:
+                identifier = entity.get("identifier", "")
+                prefix = "building_entity_"
+                if identifier.startswith(prefix):
+                    building_id = identifier[len(prefix) :]
+            if building_id:
+                lookup[building_id] = entity
+        return lookup
+
+    logger.warning(
+        "Unexpected building entity lookup response type: %s", type(data).__name__
+    )
+    return {}
 
 
 def clear_cache():

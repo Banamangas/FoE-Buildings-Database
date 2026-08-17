@@ -24,12 +24,32 @@ def test_provides_combined_army_boosts():
     assert attacker_row.value == "35%"
 
 
-def test_provides_static_resources():
+def test_provides_direct_combined_army_boost():
     entity = {
         "components": {
             "AllAge": {
-                "staticResources": {"resources": {"resources": {"medals": 100}}}
+                "boosts": {
+                    "boosts": [
+                        {
+                            "type": "att_def_boost_attacker_defender",
+                            "value": 225,
+                            "targetedFeature": "all",
+                        }
+                    ]
+                }
             }
+        }
+    }
+    rows = _render_provides(entity, "en")
+
+    row = next(r for r in rows if r.label == "Att/Def Attacker/Defender")
+    assert row.value == "225%"
+
+
+def test_provides_static_resources():
+    entity = {
+        "components": {
+            "AllAge": {"staticResources": {"resources": {"resources": {"medals": 100}}}}
         }
     }
     rows = _render_provides(entity, "en")
@@ -69,7 +89,11 @@ def test_provides_non_army_boosts():
                 "boosts": {
                     "boosts": [
                         {"type": "coin_production", "value": 100},
-                        {"type": "forge_points_production", "targetedFeature": "battleground", "value": 25},
+                        {
+                            "type": "forge_points_production",
+                            "targetedFeature": "battleground",
+                            "value": 25,
+                        },
                     ]
                 }
             }
@@ -78,4 +102,54 @@ def test_provides_non_army_boosts():
     rows = _render_provides(entity, "en")
     labels = [r.label for r in rows]
     assert "Coin %" in labels
-    assert any(r.label == "FP boost (battleground)" and r.value == "25%" for r in rows)
+    assert any(
+        r.label == "FP boost (Guild Battlegrounds)" and r.value == "25%" for r in rows
+    )
+
+
+def test_provides_preserves_repeated_and_unknown_boosts():
+    entity = {
+        "components": {
+            "AllAge": {
+                "boosts": {
+                    "boosts": [
+                        {"type": "coin_production", "value": 10},
+                        {"type": "coin_production", "value": 20},
+                        {"type": "new_event_resource_boost", "value": 7},
+                    ]
+                }
+            }
+        }
+    }
+
+    rows = _render_provides(entity, "en")
+
+    assert [row.value for row in rows if row.label == "Coin %"] == ["10%", "20%"]
+    assert any(
+        row.label == "New Event Resource Boost" and row.value == "7%" for row in rows
+    )
+
+
+def test_provides_keeps_unpaired_army_boost():
+    entity = {
+        "components": {
+            "AllAge": {
+                "boosts": {
+                    "boosts": [
+                        {
+                            "type": "att_boost_attacker",
+                            "targetedFeature": "guild_expedition",
+                            "value": 15,
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    rows = _render_provides(entity, "en")
+
+    assert any(
+        row.label == "Red Attack (Guild Expedition)" and row.value == "15%"
+        for row in rows
+    )

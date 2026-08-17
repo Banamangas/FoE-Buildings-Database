@@ -7,13 +7,7 @@ from foe_buildings.ui.tooltip import (
 
 
 def test_chain_set():
-    entity = {
-        "components": {
-            "AllAge": {
-                "chain": {"chainId": "MyChain"}
-            }
-        }
-    }
+    entity = {"components": {"AllAge": {"chain": {"chainId": "MyChain"}}}}
     rows = _render_chain_set(entity, "en")
     assert len(rows) == 1
     assert rows[0].value == "MyChain"
@@ -22,9 +16,7 @@ def test_chain_set():
 def test_chain_set_from_ability():
     entity = {
         "components": {"AllAge": {}},
-        "abilities": [
-            {"__class__": "ChainStartAbility", "chainId": "AbilityChain"}
-        ],
+        "abilities": [{"__class__": "ChainStartAbility", "chainId": "AbilityChain"}],
     }
     rows = _render_chain_set(entity, "en")
     assert any(r.value == "AbilityChain" for r in rows)
@@ -33,9 +25,7 @@ def test_chain_set_from_ability():
 def test_building_set_from_ability():
     entity = {
         "components": {"AllAge": {}},
-        "abilities": [
-            {"__class__": "BuildingSetAbility", "setId": "MySet"}
-        ],
+        "abilities": [{"__class__": "BuildingSetAbility", "setId": "MySet"}],
     }
     rows = _render_chain_set(entity, "en")
     assert any(r.label == "Set" and r.value == "MySet" for r in rows)
@@ -56,44 +46,44 @@ def test_ally_rooms():
     }
     rows = _render_ally_rooms(entity, "en")
     assert len(rows) == 2
-    assert rows[0].value == "diplomat"
-    assert rows[1].value == "merchant"
+    assert rows[0].value == "Diplomat"
+    assert rows[1].value == "Merchant"
+
+
+def test_ally_room_military_is_translated():
+    entity = {"components": {"AllAge": {"ally": {"rooms": [{"allyType": "military"}]}}}}
+
+    rows = _render_ally_rooms(entity, "en")
+
+    assert rows[0].value == "Military"
 
 
 def test_traits_unique():
-    entity = {
-        "components": {
-            "AllAge": {
-                "cityLimit": {"buildingFamily": "MyFamily"}
-            }
-        }
-    }
+    entity = {"components": {"AllAge": {"cityLimit": {"buildingFamily": "MyFamily"}}}}
     rows = _render_traits(entity, "en")
     assert any(r.value == "Unique building" for r in rows)
 
 
 def test_traits_auto_era():
-    entity = {
-        "components": {
-            "AllAge": {
-                "flags": {"flags": 4}
-            }
-        }
-    }
+    entity = {"components": {"AllAge": {"flags": {"flags": 4}}}}
     rows = _render_traits(entity, "en")
     assert any(r.value == "Upgrades automatically to current era" for r in rows)
 
 
 def test_traits_fsp_disabled():
-    entity = {
-        "components": {
-            "AllAge": {
-                "flags": {"flags": 32}
-            }
-        }
-    }
+    entity = {"components": {"AllAge": {"flags": {"flags": 32}}}}
     rows = _render_traits(entity, "en")
-    assert any(r.value == "Cannot be accelerated by Forge Points" for r in rows)
+    assert any(r.value == "Instant production finish disabled" for r in rows)
+
+
+def test_traits_from_social_interaction():
+    entity = {
+        "components": {"AllAge": {"socialInteraction": {"interactionType": "motivate"}}}
+    }
+
+    rows = _render_traits(entity, "en")
+
+    assert any(r.value == "Can be motivated" for r in rows)
 
 
 def test_traits_from_abilities():

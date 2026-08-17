@@ -114,10 +114,12 @@ def render_building_details(
             )
 
         # --- Complete Stats Table with Image / In-Game Tooltip ---
-        tab_stats, tab_tooltip = st.tabs([
-            translations.get_text("complete_stats_table", lang_code),
-            translations.get_text("in_game_tooltip", lang_code),
-        ])
+        tab_stats, tab_tooltip = st.tabs(
+            [
+                translations.get_text("complete_stats_table", lang_code),
+                translations.get_text("in_game_tooltip", lang_code),
+            ]
+        )
 
         # Prepare data for the stats table
         stats_data = []
@@ -188,11 +190,12 @@ def render_building_details(
                 lookup = data_loader.load_building_entity_lookup()
                 building_id = building_data.get("id")
                 entity = lookup.get(building_id)
-                if entity:
+                if entity and entity.get("components"):
                     building_asset_id = building_data.get(config.COL_ASSET_ID)
                     image_url = (
                         image_manager.get_building_image_url(building_asset_id)
-                        if building_asset_id and image_manager.has_image(building_asset_id)
+                        if building_asset_id
+                        and image_manager.has_image(building_asset_id)
                         else None
                     )
                     sections = tooltip_renderer.render_building_tooltip(
@@ -200,12 +203,15 @@ def render_building_details(
                         lang_code,
                         building_name=selected_building,
                         image_url=image_url,
+                        era_key=building_data.get(config.COL_ERA),
                     )
                     tooltip_renderer.render_tooltip_sections(sections, lang_code)
                 else:
                     st.info(translations.get_text("no_tooltip_data", lang_code))
             except Exception:
-                logging.exception("Failed to render in-game tooltip for %s", selected_building)
+                logging.exception(
+                    "Failed to render in-game tooltip for %s", selected_building
+                )
                 st.error(translations.get_text("tooltip_render_error", lang_code))
                 st.info(translations.get_text("no_tooltip_data", lang_code))
     else:
