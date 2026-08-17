@@ -2,6 +2,25 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from foe_buildings import i18n as translations
+from foe_buildings.ui.tooltip_icons import get_boost_icon_filename, resolve_icon
+
+
+_BOOST_LABEL_KEYS = {
+    "att_def_boost_attacker": "att_def_boost_attacker",
+    "att_def_boost_defender": "att_def_boost_defender",
+    "att_def_boost_attacker_defender": "att_def_boost_attacker_defender",
+}
+
+_COMBO_DEFINITIONS = [
+    ("att_def_boost_attacker", ["att_boost_attacker", "def_boost_attacker"]),
+    ("att_def_boost_defender", ["att_boost_defender", "def_boost_defender"]),
+    (
+        "att_def_boost_attacker_defender",
+        ["att_boost_attacker", "def_boost_attacker", "att_boost_defender", "def_boost_defender"],
+    ),
+]
+
+_FEATURES = ["all", "battleground", "guild_expedition", "guild_raids"]
 
 
 def format_time(seconds: int) -> str:
@@ -94,4 +113,74 @@ def _render_size_time_road(entity: Dict[str, Any], lang_code: str) -> List[Toolt
         )
     )
 
+    return rows
+
+
+def _collect_boosts(components: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Collect individual boosts keyed by 'feature-type' or just 'type'."""
+    boosts = {}
+    for boost in components.get("AllAge", {}).get("boosts", {}).get("boosts", []):
+        btype = boost.get("type")
+        feature = boost.get("targetedFeature", "all")
+        key = f"{feature}-{btype}" if feature != "all" else btype
+        boosts[key] = boost
+    return boosts
+
+
+def _make_combined_rows(boosts: Dict[str, Dict[str, Any]], lang_code: str) -> List[TooltipRow]:
+    """Create combined army-boost rows for all contexts."""
+    rows = []
+    for feature in _FEATURES:
+        for combined_key, parts in _COMBO_DEFINITIONS:
+            total = 0
+            has_any = False
+            for part in parts:
+                key = f"{feature}-{part}" if feature != "all" else part
+                boost = boosts.get(key)
+                if boost:
+                    total += boost.get("value", 0)
+                    has_any = True
+            if not has_any:
+                continue
+            icon_name = get_boost_icon_filename(combined_key, feature)
+            label_key = _BOOST_LABEL_KEYS.get(combined_key, combined_key)
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(icon_name),
+                    label=translations.get_text(label_key, lang_code),
+                    value=f"{total}{percent_suffix(combined_key)}",
+                )
+            )
+    return rows
+
+
+def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    """Render the 'Provides' section."""
+    rows = []
+    components = entity.get("components", {})
+    all_age = components.get("AllAge", {})
+
+    static_resources = all_age.get("staticResources", {}).get("resources", {}).get("resources", {})
+    for resource, amount in static_resources.items():
+        if amount:
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(f"{resource}.png"),
+                    label=translations.translate_column(resource, lang_code),
+                    value=str(amount),
+                )
+            )
+
+    happiness = all_age.get("happiness", {}).get("provided")
+    if happiness:
+        rows.append(
+            TooltipRow(
+                icon=resolve_icon("happiness.png"),
+                label=translations.get_text("happiness", lang_code),
+                value=str(happiness),
+            )
+        )
+
+    boosts = _collect_boosts(components)
+    rows.extend(_make_combined_rows(boosts, lang_code))
     return rows
