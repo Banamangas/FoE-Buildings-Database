@@ -1,12 +1,12 @@
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
 from foe_buildings import i18n as translations
-from foe_buildings.ui.tooltip_icons import resolve_boost_icon, resolve_icon
+from foe_buildings.ui.tooltip_icons import ResolvedIcon, boost_icon_key, resolve_game_icon
 
 
 _BOOST_LABEL_KEYS = {
@@ -44,11 +44,6 @@ _ARMY_BOOST_PARTNERS = {
     "def_boost_defender": "att_boost_defender",
 }
 
-_BOOST_ICON_NAMES = {
-    "guild_raids_action_points_collection": "qa_per_hour.png",
-    "guild_raids_action_points_capacity": "qa_capacity.png",
-}
-
 _COMBO_DEFINITIONS = [
     ("att_def_boost_attacker", ["att_boost_attacker", "def_boost_attacker"]),
     ("att_def_boost_defender", ["att_boost_defender", "def_boost_defender"]),
@@ -73,11 +68,17 @@ _FEATURE_TEXT_KEYS = {
 
 _COMBINED_ARMY_TYPES = {definition[0] for definition in _COMBO_DEFINITIONS}
 
-_RESOURCE_ALIASES = {
+_RESOURCE_LABEL_ALIASES = {
     "money": "coins",
     "strategy_points": "forge_points",
     "all_goods_of_age": "goods",
     "era_goods": "goods",
+    "treasury_goods": "guild_goods",
+}
+
+_RESOURCE_ICON_KEYS = {
+    "era_goods": "all_goods_of_age",
+    "guild_goods": "treasury_goods",
 }
 
 _RESOURCE_TEXT_KEYS = {
@@ -129,10 +130,13 @@ def percent_suffix(boost_type: str) -> str:
 
 @dataclass
 class TooltipRow:
-    icon: Optional[str]
+    icon: Optional[ResolvedIcon]
     label: str
     value: str
     suffix: Optional[str] = None
+    show_label: bool = False
+    duration: Optional[int] = None
+    markers: List[ResolvedIcon] = field(default_factory=list)
 
 
 @dataclass
@@ -230,14 +234,20 @@ def _with_feature_context(label: str, feature: str, lang_code: str) -> str:
 
 
 def _resource_display(resource: str, lang_code: str) -> tuple[str, str]:
-    normalized = _RESOURCE_ALIASES.get(resource, resource)
-    text_key = _RESOURCE_TEXT_KEYS.get(normalized)
+    label_key = _RESOURCE_LABEL_ALIASES.get(resource, resource)
+    text_key = _RESOURCE_TEXT_KEYS.get(label_key)
     label = (
         translations.get_text(text_key, lang_code)
         if text_key
-        else translations.translate_column(normalized, lang_code)
+        else translations.translate_column(label_key, lang_code)
     )
-    return label, f"{normalized}.png"
+    return label, _RESOURCE_ICON_KEYS.get(resource, resource)
+
+
+def _icon(
+    key: str, label: str, entity_asset_id: Optional[str] = None
+) -> ResolvedIcon:
+    return resolve_game_icon(key, label, entity_asset_id=entity_asset_id)
 
 
 def render_tooltip_sections(sections: List[TooltipSection], lang_code: str) -> None:
@@ -252,8 +262,8 @@ def render_tooltip_sections(sections: List[TooltipSection], lang_code: str) -> N
                 st.markdown(f"**{section.title}**")
             for row in section.rows:
                 icon_html = (
-                    f'<img src="{row.icon}" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;">'
-                    if row.icon
+                    f'<img src="{row.icon.url}" alt="{row.icon.accessible_name}" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;">'
+                    if row.icon and row.icon.url
                     else ""
                 )
                 suffix = f" <em>{row.suffix}</em>" if row.suffix else ""
@@ -274,7 +284,7 @@ def _render_size_time_road(entity: Dict[str, Any], lang_code: str) -> List[Toolt
     if width is not None and height is not None:
         rows.append(
             TooltipRow(
-                icon=None,
+                icon=_icon("size", translations.get_text("size", lang_code)),
                 label=translations.get_text("size", lang_code),
                 value=f"{height}x{width}",
             )
@@ -284,7 +294,9 @@ def _render_size_time_road(entity: Dict[str, Any], lang_code: str) -> List[Toolt
     if construction_time:
         rows.append(
             TooltipRow(
-                icon=None,
+                icon=_icon(
+                    "icon_time", translations.get_text("construction_time", lang_code)
+                ),
                 label=translations.get_text("construction_time", lang_code),
                 value=format_time(construction_time),
             )
@@ -293,15 +305,19 @@ def _render_size_time_road(entity: Dict[str, Any], lang_code: str) -> List[Toolt
     road_level = all_age.get("streetConnectionRequirement", {}).get("requiredLevel", 0)
     if road_level == 2:
         road_label = translations.get_text("road_required_2", lang_code)
+        road_icon_key = "street_required"
     elif road_level == 1:
         road_label = translations.get_text("road_required", lang_code)
+        road_icon_key = "road_required"
     else:
         road_label = translations.get_text("no_road_required", lang_code)
+        road_icon_key = "/shared/gui/buffbar/buffbar_icon_buff_unconnected.png"
     rows.append(
         TooltipRow(
-            icon=None,
+            icon=_icon(road_icon_key, translations.get_text("road", lang_code)),
             label=translations.get_text("road", lang_code),
             value=road_label,
+            show_label=True,
         )
     )
 
@@ -359,7 +375,7 @@ def _make_combined_rows(
             for value in values:
                 rows.append(
                     TooltipRow(
-                        icon=resolve_boost_icon(combined_key, feature),
+                        icon=_icon(boost_icon_key(combined_key, feature), label),
                         label=label,
                         value=f"{value}{percent_suffix(combined_key)}",
                     )
@@ -397,15 +413,13 @@ def _make_non_army_rows(
             for candidate in boosts
         ):
             continue
-        icon = resolve_icon(_BOOST_ICON_NAMES.get(boost_type)) or resolve_boost_icon(
-            boost_type, feature
+        label = _with_feature_context(
+            _boost_label(boost_type, lang_code), feature, lang_code
         )
         rows.append(
             TooltipRow(
-                icon=icon,
-                label=_with_feature_context(
-                    _boost_label(boost_type, lang_code), feature, lang_code
-                ),
+                icon=_icon(boost_icon_key(boost_type, feature), label),
+                label=label,
                 value=f"{boost.get('value', 0)}{percent_suffix(boost_type)}",
             )
         )
@@ -423,10 +437,10 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     )
     for resource, amount in static_resources.items():
         if amount:
-            label, icon_name = _resource_display(resource, lang_code)
+            label, icon_key = _resource_display(resource, lang_code)
             rows.append(
                 TooltipRow(
-                    icon=resolve_icon(icon_name),
+                    icon=_icon(icon_key, label),
                     label=label,
                     value=str(amount),
                 )
@@ -436,7 +450,7 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     if population:
         rows.append(
             TooltipRow(
-                icon=resolve_icon("population.png"),
+                icon=_icon("population", translations.translate_column("Population", lang_code)),
                 label=translations.translate_column("Population", lang_code),
                 value=str(population),
             )
@@ -446,7 +460,7 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     if happiness:
         rows.append(
             TooltipRow(
-                icon=resolve_icon("happiness.png"),
+                icon=_icon("happiness", translations.get_text("happiness", lang_code)),
                 label=translations.get_text("happiness", lang_code),
                 value=str(happiness),
             )
@@ -458,7 +472,7 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     if ranking_points:
         rows.append(
             TooltipRow(
-                icon=resolve_icon("medals.png"),
+                icon=_icon("ranking_points", translations.get_text("ranking_points", lang_code)),
                 label=translations.get_text("ranking_points", lang_code),
                 value=str(ranking_points),
             )
@@ -474,10 +488,10 @@ def _render_resources(resources: Dict[str, Any], lang_code: str) -> List[Tooltip
     rows = []
     for resource, amount in (resources or {}).items():
         if amount:
-            label, icon_name = _resource_display(resource, lang_code)
+            label, icon_key = _resource_display(resource, lang_code)
             rows.append(
                 TooltipRow(
-                    icon=resolve_icon(icon_name),
+                    icon=_icon(icon_key, label),
                     label=label,
                     value=str(amount),
                 )
@@ -493,9 +507,10 @@ def _render_chain_set(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow
         if chain_id:
             rows.append(
                 TooltipRow(
-                    icon=resolve_icon(f"{chain_id}.png"),
+                    icon=_icon(chain_id, translations.get_text("chain", lang_code)),
                     label=translations.get_text("chain", lang_code),
                     value=chain_id,
+                    show_label=True,
                 )
             )
 
@@ -506,9 +521,12 @@ def _render_chain_set(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow
             if chain_id:
                 rows.append(
                     TooltipRow(
-                        icon=resolve_icon(f"{chain_id}.png"),
+                        icon=_icon(
+                            chain_id, translations.get_text("chain", lang_code)
+                        ),
                         label=translations.get_text("chain", lang_code),
                         value=chain_id,
+                        show_label=True,
                     )
                 )
         elif ability_class == "BuildingSetAbility":
@@ -516,9 +534,10 @@ def _render_chain_set(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow
             if set_id:
                 rows.append(
                     TooltipRow(
-                        icon=resolve_icon(f"{set_id}.png"),
+                        icon=_icon(set_id, translations.get_text("set", lang_code)),
                         label=translations.get_text("set", lang_code),
                         value=set_id,
+                        show_label=True,
                     )
                 )
     return rows
@@ -539,9 +558,13 @@ def _render_ally_rooms(entity: Dict[str, Any], lang_code: str) -> List[TooltipRo
         )
         rows.append(
             TooltipRow(
-                icon=resolve_icon("ally_room.png"),
+                icon=_icon(
+                    "historical_allies_slot_tooltip_icon_empty",
+                    translations.get_text("ally_room", lang_code),
+                ),
                 label=translations.get_text("ally_room", lang_code),
                 value=value,
+                show_label=True,
             )
         )
     return rows
@@ -554,6 +577,16 @@ _ABILITY_TRAITS = {
     "AffectedByLifeSupportAbility": "requires_life_support",
 }
 
+TRAIT_ICON_KEYS = {
+    "unique_building": "icon_unique_building",
+    "upgrades_automatically": "icon_age",
+    "fsp_disabled": "icon_fsp_disabled",
+    "can_be_motivated": "when_motivated",
+    "can_be_polished": "when_motivated",
+    "cannot_be_plundered": "eventwindow_plunder_repel",
+    "requires_life_support": "life_support",
+}
+
 
 def _render_traits(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
     rows = []
@@ -564,9 +597,10 @@ def _render_traits(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
         if not any(row.value == value for row in rows):
             rows.append(
                 TooltipRow(
-                    icon=None,
+                    icon=_icon(TRAIT_ICON_KEYS[text_key], value),
                     label=translations.get_text("trait", lang_code),
                     value=value,
+                    show_label=True,
                 )
             )
 
@@ -612,10 +646,10 @@ def _render_costs(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
     )
     for resource, amount in resources.items():
         if amount:
-            label, icon_name = _resource_display(resource, lang_code)
+            label, icon_key = _resource_display(resource, lang_code)
             rows.append(
                 TooltipRow(
-                    icon=resolve_icon(icon_name),
+                    icon=_icon(icon_key, label),
                     label=label,
                     value=str(amount),
                 )
@@ -643,8 +677,8 @@ def _generic_reward_display(
     )
 
     if reward.get("type") == "resource" and reward.get("subType"):
-        label, icon_name = _resource_display(reward["subType"], lang_code)
-        return TooltipRow(icon=resolve_icon(icon_name), label=label, value=str(amount))
+        label, icon_key = _resource_display(reward["subType"], lang_code)
+        return TooltipRow(icon=_icon(icon_key, label), label=label, value=str(amount))
 
     icon_asset = reward.get("iconAssetName")
     label = parsed_name or reward_id or ""
@@ -656,9 +690,9 @@ def _generic_reward_display(
             "subType"
         )
 
-    icon_name = f"{icon_asset}.png" if icon_asset else None
+    icon = _icon(icon_asset, label) if icon_asset else None
     return TooltipRow(
-        icon=resolve_icon(icon_name),
+        icon=icon,
         label=label,
         value=str(amount),
     )
@@ -710,7 +744,9 @@ def _render_product(
             unit_type = product.get("unitTypeId", "military")
             rows.append(
                 TooltipRow(
-                    icon=resolve_icon(f"{unit_type}.png"),
+                    icon=_icon(
+                        unit_type, translations.translate_column(unit_type, lang_code)
+                    ),
                     label=translations.translate_column(unit_type, lang_code),
                     value=str(amount),
                     suffix=suffix,

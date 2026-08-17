@@ -56,20 +56,32 @@ def test_provides_static_resources():
     assert any(r.label == "Medals" and r.value == "100" for r in rows)
 
 
-def test_provides_resource_row_keeps_existing_local_icon():
+def test_provides_keeps_exact_resource_and_boost_icon_keys():
     entity = {
         "components": {
             "AllAge": {
-                "staticResources": {"resources": {"resources": {"supplies": 100}}}
+                "staticResources": {"resources": {"resources": {"money": 10}}},
+                "boosts": {
+                    "boosts": [
+                        {
+                            "type": "att_def_boost_attacker_defender",
+                            "targetedFeature": "guild_expedition",
+                            "value": 25,
+                        }
+                    ]
+                },
             }
         }
     }
 
     rows = _render_provides(entity, "en")
 
-    row = next(row for row in rows if row.label == "Supplies")
-    assert row.icon is not None
-    assert row.icon.startswith("data:image/png;base64,")
+    assert [row.icon.key for row in rows] == [
+        "money",
+        "att_def_boost_attacker_defender_gex",
+    ]
+    assert [row.show_label for row in rows] == [False, False]
+    assert [row.label for row in rows] == ["Coins", "Att/Def Attacker/Defender (Guild Expedition)"]
 
 
 def test_provides_population_and_happiness():

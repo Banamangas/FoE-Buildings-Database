@@ -118,3 +118,35 @@ def test_selected_empty_boost_list_does_not_erase_all_age_boosts():
 
     provides = _rows_by_section(sections)["Provides"]
     assert any(row.label == "Coin %" and row.value == "10%" for row in provides)
+
+
+def test_full_tooltip_preserves_accessible_labels_with_exact_icons():
+    entity = {
+        "components": {
+            "AllAge": {
+                "placement": {"size": {"x": 2, "y": 1}},
+                "staticResources": {"resources": {"resources": {"money": 10}}},
+                "chain": {"chainId": "MyChain"},
+                "ally": {"rooms": [{"allyType": "diplomat"}]},
+                "cityLimit": {"buildingFamily": "MyFamily"},
+            }
+        }
+    }
+
+    sections = render_building_tooltip(entity, "en")
+    rows_by_section = _rows_by_section(sections)
+
+    money_row = rows_by_section["Provides"][0]
+    trait_row = rows_by_section["Traits"][0]
+    assert (money_row.icon.key, money_row.icon.accessible_name, money_row.label) == (
+        "money",
+        "Coins",
+        "Coins",
+    )
+    assert money_row.show_label is False
+    assert rows_by_section["Chain / Set"][0].icon.key == "MyChain"
+    assert rows_by_section["Ally Rooms"][0].icon.key == (
+        "historical_allies_slot_tooltip_icon_empty"
+    )
+    assert trait_row.icon.key == "icon_unique_building"
+    assert trait_row.show_label is True

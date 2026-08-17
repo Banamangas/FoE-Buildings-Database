@@ -11,6 +11,8 @@ def test_chain_set():
     rows = _render_chain_set(entity, "en")
     assert len(rows) == 1
     assert rows[0].value == "MyChain"
+    assert rows[0].icon.key == "MyChain"
+    assert rows[0].show_label is True
 
 
 def test_chain_set_from_ability():
@@ -48,6 +50,10 @@ def test_ally_rooms():
     assert len(rows) == 2
     assert rows[0].value == "Diplomat"
     assert rows[1].value == "Merchant"
+    assert all(
+        row.icon.key == "historical_allies_slot_tooltip_icon_empty" for row in rows
+    )
+    assert all(row.show_label for row in rows)
 
 
 def test_ally_room_military_is_translated():
@@ -102,6 +108,30 @@ def test_traits_from_abilities():
     assert "Can be motivated" in values
     assert "Cannot be plundered" in values
     assert "Requires life support" in values
+    icons_by_value = {row.value: row.icon.key for row in rows}
+    assert icons_by_value["Can be polished"] == "when_motivated"
+    assert icons_by_value["Can be motivated"] == "when_motivated"
+    assert icons_by_value["Cannot be plundered"] == "eventwindow_plunder_repel"
+    assert icons_by_value["Requires life support"] == "life_support"
+    assert all(row.show_label for row in rows)
+
+
+def test_traits_use_exact_semantic_icon_keys():
+    entity = {
+        "components": {
+            "AllAge": {
+                "cityLimit": {"buildingFamily": "MyFamily"},
+                "flags": {"flags": 32},
+            }
+        }
+    }
+
+    rows = _render_traits(entity, "en")
+
+    icons_by_value = {row.value: row.icon.key for row in rows}
+    assert icons_by_value["Unique building"] == "icon_unique_building"
+    assert icons_by_value["Instant production finish disabled"] == "icon_fsp_disabled"
+    assert all(row.show_label for row in rows)
 
 
 def test_costs():
@@ -117,3 +147,5 @@ def test_costs():
     rows = _render_costs(entity, "en")
     assert any(r.value == "1000" for r in rows)
     assert any(r.value == "500" for r in rows)
+    assert [row.icon.key for row in rows] == ["supplies", "coins"]
+    assert all(row.show_label is False for row in rows)
