@@ -140,11 +140,34 @@ class TooltipRow:
 
 
 @dataclass
+class RandomOutcome:
+    row: TooltipRow
+    probability: int
+
+
+@dataclass
+class RandomProductionGroup:
+    outcomes: List[RandomOutcome]
+    duration: Optional[int] = None
+    markers: List[ResolvedIcon] = field(default_factory=list)
+
+
+@dataclass
+class ProductionResult:
+    rows: List[TooltipRow] = field(default_factory=list)
+    random_groups: List[RandomProductionGroup] = field(default_factory=list)
+    shared_duration: Optional[int] = None
+
+
+@dataclass
 class TooltipSection:
     title: Optional[str]
     rows: List[TooltipRow]
     header: Optional[str] = None
     image_url: Optional[str] = None
+    key: Optional[str] = None
+    random_groups: List[RandomProductionGroup] = field(default_factory=list)
+    shared_duration: Optional[int] = None
 
 
 def _resolve_entity_for_era(
@@ -677,10 +700,12 @@ def _generic_reward_display(
     )
 
     if reward.get("type") == "resource" and reward.get("subType"):
-        label, icon_key = _resource_display(reward["subType"], lang_code)
-        return TooltipRow(icon=_icon(icon_key, label), label=label, value=str(amount))
+        subtype = reward["subType"]
+        label, _ = _resource_display(subtype, lang_code)
+        return TooltipRow(icon=_icon(subtype, label), label=label, value=str(amount))
 
     icon_asset = reward.get("iconAssetName")
+    markers = []
     label = parsed_name or reward_id or ""
     if icon_asset == "icon_fragment":
         label = re.sub(r"^Fragments? of\s+", "", label, flags=re.IGNORECASE)
@@ -689,25 +714,48 @@ def _generic_reward_display(
         icon_asset = assembled_reward.get("iconAssetName") or assembled_reward.get(
             "subType"
         )
+        markers.append(
+            _icon(
+                "icon_tooltip_fragment",
+                translations.get_text("fragments", lang_code),
+            )
+        )
 
     icon = _icon(icon_asset, label) if icon_asset else None
     return TooltipRow(
         icon=icon,
         label=label,
         value=str(amount),
+        markers=markers,
     )
+
+
+def _motivated_marker(lang_code: str) -> ResolvedIcon:
+    label = translations.get_text("when_motivated", lang_code)
+    return _icon("when_motivated", label)
+
+
+def _unit_icon(unit_type: str, label: str) -> ResolvedIcon:
+    if unit_type == "rogue":
+        icon_key = "rogue"
+    elif "champion" in unit_type:
+        icon_key = "chivalry"
+    else:
+        icon_key = unit_type
+
+    icon = _icon(icon_key, label)
+    if icon.url or icon_key != unit_type or icon_key == "military":
+        return icon
+
+    fallback = _icon("military", label)
+    return ResolvedIcon(icon.key, fallback.url, icon.accessible_name)
 
 
 def _render_product(
     product: Dict[str, Any], lookup: Dict[str, Any], lang_code: str
 ) -> List[TooltipRow]:
-    """Render a single product. Returns zero or more rows."""
+    """Render one non-random product into zero or more ordinary rows."""
     rows = []
-    suffix = (
-        translations.get_text("when_motivated", lang_code)
-        if product.get("onlyWhenMotivated")
-        else None
-    )
     ptype = product.get("type")
 
     if ptype == "resources":
@@ -742,49 +790,62 @@ def _render_product(
         amount = product.get("amount", 0)
         if amount:
             unit_type = product.get("unitTypeId", "military")
+            label = translations.translate_column(unit_type, lang_code)
             rows.append(
                 TooltipRow(
-                    icon=_icon(
-                        unit_type, translations.translate_column(unit_type, lang_code)
-                    ),
-                    label=translations.translate_column(unit_type, lang_code),
+                    icon=_unit_icon(unit_type, label),
+                    label=label,
                     value=str(amount),
-                    suffix=suffix,
                 )
             )
-    elif ptype == "random":
-        for random_product in product.get("products", []):
-            sub = random_product.get("product", {})
-            chance = random_product.get("dropChance", 0)
-            sub_rows = _render_product(sub, lookup, lang_code)
-            for row in sub_rows:
-                row.value = f"{row.value} ({int(chance * 100)}%)"
-                rows.append(row)
 
-    for row in rows:
-        if suffix and not row.suffix:
-            row.suffix = suffix
+    if product.get("onlyWhenMotivated"):
+        marker = _motivated_marker(lang_code)
+        for row in rows:
+            row.markers.append(marker)
     return rows
 
 
-def _render_produces(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
-    """Render the 'Produces' section."""
-    rows = []
+def _render_random_product(
+    product: Dict[str, Any], lookup: Dict[str, Any], lang_code: str
+) -> RandomProductionGroup:
+    """Preserve one raw random product as one independent outcome group."""
+    outcomes = []
+    for random_product in product.get("products", []):
+        rows = _render_product(random_product.get("product", {}), lookup, lang_code)
+        probability = int(round(random_product.get("dropChance", 0) * 100))
+        outcomes.extend(RandomOutcome(row=row, probability=probability) for row in rows)
+
+    markers = (
+        [_motivated_marker(lang_code)] if product.get("onlyWhenMotivated") else []
+    )
+    return RandomProductionGroup(outcomes=outcomes, markers=markers)
+
+
+def _render_produces(entity: Dict[str, Any], lang_code: str) -> ProductionResult:
+    """Extract production rows, random groups, and timing metadata."""
     components = entity.get("components", {})
     all_age = components.get("AllAge", {})
     lookup = all_age.get("lookup", {}).get("rewards", {})
     options = all_age.get("production", {}).get("options", [])
+    durations = {option.get("time") for option in options if option.get("time")}
+    shared_duration = next(iter(durations)) if len(durations) == 1 else None
+    result = ProductionResult(shared_duration=shared_duration)
 
     for option in options:
-        time_label = format_time(option.get("time", 0))
+        duration = None if shared_duration is not None else option.get("time")
         for product in option.get("products", []):
-            for row in _render_product(product, lookup, lang_code):
-                time_suffix = translations.get_text("in_time", lang_code).format(
-                    time=time_label
-                )
-                row.value = f"{row.value} {time_suffix}"
-                rows.append(row)
-    return rows
+            if product.get("type") == "random":
+                group = _render_random_product(product, lookup, lang_code)
+                group.duration = duration
+                result.random_groups.append(group)
+                continue
+
+            rows = _render_product(product, lookup, lang_code)
+            for row in rows:
+                row.duration = duration
+            result.rows.extend(rows)
+    return result
 
 
 def render_building_tooltip(
@@ -806,6 +867,7 @@ def render_building_tooltip(
                 rows=[],
                 header=header,
                 image_url=image_url,
+                key="header",
             )
         )
 
@@ -813,7 +875,9 @@ def render_building_tooltip(
     if size_rows:
         sections.append(
             TooltipSection(
-                title=translations.get_text("size_time_road", lang_code), rows=size_rows
+                title=translations.get_text("size_time_road", lang_code),
+                rows=size_rows,
+                key="size_time_road",
             )
         )
 
@@ -821,15 +885,21 @@ def render_building_tooltip(
     if provides:
         sections.append(
             TooltipSection(
-                title=translations.get_text("provides", lang_code), rows=provides
+                title=translations.get_text("provides", lang_code),
+                rows=provides,
+                key="provides",
             )
         )
 
-    produces = _render_produces(resolved_entity, lang_code)
-    if produces:
+    production = _render_produces(resolved_entity, lang_code)
+    if production.rows or production.random_groups:
         sections.append(
             TooltipSection(
-                title=translations.get_text("produces", lang_code), rows=produces
+                title=translations.get_text("produces", lang_code),
+                rows=production.rows,
+                key="produces",
+                random_groups=production.random_groups,
+                shared_duration=production.shared_duration,
             )
         )
 
@@ -837,7 +907,9 @@ def render_building_tooltip(
     if chain_rows:
         sections.append(
             TooltipSection(
-                title=translations.get_text("chain_set", lang_code), rows=chain_rows
+                title=translations.get_text("chain_set", lang_code),
+                rows=chain_rows,
+                key="chain_set",
             )
         )
 
@@ -845,21 +917,29 @@ def render_building_tooltip(
     if ally_rows:
         sections.append(
             TooltipSection(
-                title=translations.get_text("ally_rooms", lang_code), rows=ally_rows
+                title=translations.get_text("ally_rooms", lang_code),
+                rows=ally_rows,
+                key="ally_rooms",
             )
         )
 
     costs = _render_costs(resolved_entity, lang_code)
     if costs:
         sections.append(
-            TooltipSection(title=translations.get_text("costs", lang_code), rows=costs)
+            TooltipSection(
+                title=translations.get_text("costs", lang_code),
+                rows=costs,
+                key="costs",
+            )
         )
 
     traits = _render_traits(resolved_entity, lang_code)
     if traits:
         sections.append(
             TooltipSection(
-                title=translations.get_text("traits", lang_code), rows=traits
+                title=translations.get_text("traits", lang_code),
+                rows=traits,
+                key="traits",
             )
         )
 
