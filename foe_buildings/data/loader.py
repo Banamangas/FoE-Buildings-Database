@@ -20,6 +20,7 @@ import streamlit as st
 from foe_buildings.config import get_api_config, logger
 
 _API_TIMEOUT = 30  # seconds per request
+_ENTITY_LOOKUP_TIMEOUT = 120  # seconds for the ~40 MB entity lookup payload
 _PAGE_SIZE = 1000  # max page size allowed by the API
 _CACHE_TTL = (
     82800  # 23 hours in seconds — data refreshes server-side once daily at ~18:00
@@ -30,6 +31,7 @@ def _make_request(
     endpoint: str,
     params: Optional[Dict] = None,
     fatal: bool = True,
+    timeout: int = _API_TIMEOUT,
 ) -> Optional[Dict[str, Any]]:
     """Make an authenticated GET request to the API.
 
@@ -51,7 +53,7 @@ def _make_request(
 
     try:
         response = requests.get(
-            url, headers=headers, params=params, timeout=_API_TIMEOUT
+            url, headers=headers, params=params, timeout=timeout
         )
         response.raise_for_status()
         return response.json()
@@ -183,7 +185,11 @@ def load_building_entity_lookup() -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: empty dict if the request fails or returns nothing.
     """
-    data = _make_request("/data/download/building_entity_lookup.json", fatal=False)
+    data = _make_request(
+        "/data/download/building_entity_lookup.json",
+        fatal=False,
+        timeout=_ENTITY_LOOKUP_TIMEOUT,
+    )
     if not data:
         return {}
     return data
@@ -194,4 +200,5 @@ def clear_cache():
     load_and_process_data.clear()
     get_forgehx_data.clear()
     get_building_name_translations.clear()
+    load_building_entity_lookup.clear()
     st.success("Cache cleared — data will be refreshed on next load.")

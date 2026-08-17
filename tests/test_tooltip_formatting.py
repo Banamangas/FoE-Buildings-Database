@@ -1,4 +1,4 @@
-from foe_buildings.ui.tooltip import format_range, format_time, percent_suffix
+from foe_buildings.ui.tooltip import format_time, percent_suffix
 
 
 def test_format_time_seconds():
@@ -19,14 +19,6 @@ def test_format_time_days():
 
 def test_format_time_zero():
     assert format_time(0) == "0s"
-
-
-def test_format_range_equal():
-    assert format_range(10, 10) == "10"
-
-
-def test_format_range_different():
-    assert format_range(10, 20) == "10 - 20"
 
 
 def test_percent_suffix_normal():

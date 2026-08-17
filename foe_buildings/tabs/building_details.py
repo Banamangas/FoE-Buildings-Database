@@ -1,10 +1,14 @@
+import logging
+
 import pandas as pd
 import streamlit as st
 
 from foe_buildings import config
 from foe_buildings import i18n as translations
+from foe_buildings.data import loader as data_loader
 from foe_buildings.data.calculations import combine_army_with_ge_gbg
 from foe_buildings.ui import grid as ui_components
+from foe_buildings.ui import tooltip as tooltip_renderer
 
 
 def _render_stats_table(stats_data: list, lang_code: str) -> None:
@@ -98,9 +102,6 @@ def render_building_details(
                 ):
                     building_data[col] = round(building_data[col] / building_size, 8)
 
-        # Display building name as header
-        st.markdown(f"### {selected_building}")
-
         # Show per square mode info if active
         if show_per_square:
             st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
@@ -112,8 +113,11 @@ def render_building_details(
                 and ui_components.get_icon_base64(col_name) is not None
             )
 
-        # --- Complete Stats Table with Image ---
-        st.subheader(f"📊 {translations.get_text('complete_stats_table', lang_code)}")
+        # --- Complete Stats Table with Image / In-Game Tooltip ---
+        tab_stats, tab_tooltip = st.tabs([
+            translations.get_text("complete_stats_table", lang_code),
+            translations.get_text("in_game_tooltip", lang_code),
+        ])
 
         # Prepare data for the stats table
         stats_data = []
@@ -161,20 +165,48 @@ def render_building_details(
                         }
                     )
 
-        # Create layout with stats table on left and image on right
-        building_asset_id = building_data.get(config.COL_ASSET_ID)
-        if building_asset_id and image_manager.has_image(building_asset_id):
-            # Layout with table on left and image on right
-            table_col, img_col = st.columns([2, 4])
+        with tab_stats:
+            st.markdown(f"### {selected_building}")
+            # Create layout with stats table on left and image on right
+            building_asset_id = building_data.get(config.COL_ASSET_ID)
+            if building_asset_id and image_manager.has_image(building_asset_id):
+                # Layout with table on left and image on right
+                table_col, img_col = st.columns([2, 4])
 
-            with table_col:
+                with table_col:
+                    _render_stats_table(stats_data, lang_code)
+
+                with img_col:
+                    image_url = image_manager.get_building_image_url(building_asset_id)
+                    st.image(image_url, caption=selected_building, width="content")
+            else:
+                # No image available, show table full width
                 _render_stats_table(stats_data, lang_code)
 
-            with img_col:
-                image_url = image_manager.get_building_image_url(building_asset_id)
-                st.image(image_url, caption=selected_building, width="content")
-        else:
-            # No image available, show table full width
-            _render_stats_table(stats_data, lang_code)
+        with tab_tooltip:
+            try:
+                lookup = data_loader.load_building_entity_lookup()
+                building_id = building_data.get("id")
+                entity = lookup.get(building_id)
+                if entity:
+                    building_asset_id = building_data.get(config.COL_ASSET_ID)
+                    image_url = (
+                        image_manager.get_building_image_url(building_asset_id)
+                        if building_asset_id and image_manager.has_image(building_asset_id)
+                        else None
+                    )
+                    sections = tooltip_renderer.render_building_tooltip(
+                        entity,
+                        lang_code,
+                        building_name=selected_building,
+                        image_url=image_url,
+                    )
+                    tooltip_renderer.render_tooltip_sections(sections, lang_code)
+                else:
+                    st.info(translations.get_text("no_tooltip_data", lang_code))
+            except Exception:
+                logging.exception("Failed to render in-game tooltip for %s", selected_building)
+                st.error(translations.get_text("tooltip_render_error", lang_code))
+                st.info(translations.get_text("no_tooltip_data", lang_code))
     else:
         st.info(translations.get_text("no_building_selected", lang_code))

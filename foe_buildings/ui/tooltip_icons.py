@@ -29,7 +29,12 @@ BOOST_ICON_MAP = {
 
 
 def get_boost_icon_filename(boost_type: str, feature: str = "all") -> Optional[str]:
-    """Return the local icon filename for a boost key + feature context."""
+    """Return the local icon filename for a boost and optional context.
+
+    Context variants are derived by inserting the feature slug before the
+    icon's semantic suffix. Callers should use ``resolve_boost_icon`` when a
+    generated variant may not be available locally.
+    """
     base_icon = BOOST_ICON_MAP.get(boost_type)
     if base_icon is None:
         return None
@@ -53,3 +58,11 @@ def resolve_icon(icon_name: Optional[str]) -> Optional[str]:
     if base64_str:
         return f"data:image/png;base64,{base64_str}"
     return None
+
+
+def resolve_boost_icon(boost_type: str, feature: str = "all") -> Optional[str]:
+    """Resolve a context icon, falling back to the base icon if necessary."""
+    context_icon = resolve_icon(get_boost_icon_filename(boost_type, feature))
+    if context_icon:
+        return context_icon
+    return resolve_icon(get_boost_icon_filename(boost_type))

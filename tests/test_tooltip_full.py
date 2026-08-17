@@ -21,6 +21,7 @@ def test_render_building_tooltip_returns_sections():
         },
     }
     sections = render_building_tooltip(entity, "en")
+    assert sections[0].header == "Test Building"
     titles = [s.title for s in sections]
     assert "Size" in titles or "Road" in titles or any(t is not None for t in titles)
     assert len(sections) > 0

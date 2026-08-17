@@ -41,3 +41,9 @@ def test_resolve_icon_empty_input():
 
 def test_resolve_icon_missing_file():
     assert tooltip_icons.resolve_icon("definitely_missing_icon.png") is None
+
+
+def test_resolve_boost_icon_falls_back_to_base_icon():
+    result = tooltip_icons.resolve_boost_icon("coin_production", "battleground")
+    assert result is not None
+    assert result.startswith("data:image/png;base64,")

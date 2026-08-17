@@ -55,3 +55,57 @@ def test_produces_random():
     }
     rows = _render_produces(entity, "en")
     assert any("50%" in r.value for r in rows)
+
+
+def test_produces_generic_reward_resource():
+    entity = {
+        "components": {
+            "AllAge": {
+                "lookup": {
+                    "rewards": {
+                        "reward_1": {"type": "resource", "subType": "medals"}
+                    }
+                },
+                "production": {
+                    "options": [
+                        {
+                            "time": 3600,
+                            "products": [
+                                {
+                                    "type": "genericReward",
+                                    "reward": {"id": "reward_1", "amount": 50},
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        }
+    }
+    rows = _render_produces(entity, "en")
+    assert any(r.label == "Medals" and "50" in r.value for r in rows)
+
+
+def test_produces_generic_reward_unknown():
+    entity = {
+        "components": {
+            "AllAge": {
+                "lookup": {"rewards": {}},
+                "production": {
+                    "options": [
+                        {
+                            "time": 3600,
+                            "products": [
+                                {
+                                    "type": "genericReward",
+                                    "reward": {"id": "unknown_reward", "amount": 1},
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        }
+    }
+    rows = _render_produces(entity, "en")
+    assert any(r.label == "unknown_reward" for r in rows)
