@@ -813,7 +813,8 @@ def _render_random_product(
     outcomes = []
     for random_product in product.get("products", []):
         rows = _render_product(random_product.get("product", {}), lookup, lang_code)
-        probability = int(round(random_product.get("dropChance", 0) * 100))
+        drop_chance = random_product.get("dropChance", 0)
+        probability = int(drop_chance * 100)
         outcomes.extend(RandomOutcome(row=row, probability=probability) for row in rows)
 
     markers = (

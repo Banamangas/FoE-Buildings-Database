@@ -115,7 +115,7 @@ def test_mixed_duration_random_groups_keep_their_parent_option_duration():
     assert [group.duration for group in result.random_groups] == [3600, 86400]
     assert [group.outcomes[0].probability for group in result.random_groups] == [
         33,
-        67,
+        66,
     ]
 
 
