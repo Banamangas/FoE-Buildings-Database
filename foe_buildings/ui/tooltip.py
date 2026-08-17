@@ -184,3 +184,71 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     boosts = _collect_boosts(components)
     rows.extend(_make_combined_rows(boosts, lang_code))
     return rows
+
+
+def _render_resources(resources: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    rows = []
+    for resource, amount in (resources or {}).items():
+        if amount:
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(f"{resource}.png"),
+                    label=translations.translate_column(resource, lang_code),
+                    value=str(amount),
+                )
+            )
+    return rows
+
+
+def _render_product(product: Dict[str, Any], lookup: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    """Render a single product. Returns zero or more rows."""
+    rows = []
+    suffix = translations.get_text("when_motivated", lang_code) if product.get("onlyWhenMotivated") else None
+    ptype = product.get("type")
+
+    if ptype == "resources":
+        rows.extend(_render_resources(product.get("playerResources", {}).get("resources"), lang_code))
+    elif ptype == "guildResources":
+        rows.extend(_render_resources(product.get("guildResources", {}).get("resources"), lang_code))
+    elif ptype == "unit":
+        amount = product.get("amount", 0)
+        if amount:
+            unit_type = product.get("unitTypeId", "military")
+            rows.append(
+                TooltipRow(
+                    icon=resolve_icon(f"{unit_type}.png"),
+                    label=translations.translate_column(unit_type, lang_code),
+                    value=str(amount),
+                    suffix=suffix,
+                )
+            )
+    elif ptype == "random":
+        for random_product in product.get("products", []):
+            sub = random_product.get("product", {})
+            chance = random_product.get("dropChance", 0)
+            sub_rows = _render_product(sub, lookup, lang_code)
+            for row in sub_rows:
+                row.value = f"{row.value} ({int(chance * 100)}%)"
+                rows.append(row)
+
+    for row in rows:
+        if suffix and not row.suffix:
+            row.suffix = suffix
+    return rows
+
+
+def _render_produces(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+    """Render the 'Produces' section."""
+    rows = []
+    components = entity.get("components", {})
+    all_age = components.get("AllAge", {})
+    lookup = all_age.get("lookup", {}).get("rewards", {})
+    options = all_age.get("production", {}).get("options", [])
+
+    for option in options:
+        time_label = format_time(option.get("time", 0))
+        for product in option.get("products", []):
+            for row in _render_product(product, lookup, lang_code):
+                row.value = f"{row.value} in {time_label}"
+                rows.append(row)
+    return rows

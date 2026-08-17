@@ -333,6 +333,7 @@
     "how_to_import_inventory_data": "Comment importer les données de votre inventaire ?",
     "city_analysis_help_import": "1. Copiez le code ci-dessous si vous souhaitez importer votre propre ville.\n\n2. Ouvrez le jeu dans un navigateur avec FoEHelper installé.\n\n3. Appuyez sur F12 pour ouvrir la console de développement du navigateur.\n\n4. Collez le code et appuyer sur Entrée. Le résultat sera copié automatiquement.\n\n5. Revenez sur cette page et collez le résultat dans le champ ci-dessous.",
     "inventory_analysis_help_import": "1. Copiez le code ci-dessous si vous souhaitez importer votre propre inventaire.\n\n2. Ouvrez le jeu dans un navigateur avec FoEHelper installé.\n\n3. Appuyez sur F12 pour ouvrir la console de développement du navigateur.\n\n4. Collez le code et appuyer sur Entrée. Le résultat sera copié automatiquement.\n\n5. Revenez sur cette page et collez le résultat dans le champ ci-dessous.",
+    "when_motivated": "lorsque motivé",
     "Yes": "Oui",
     "No": "Non",
     "days": "jours",
