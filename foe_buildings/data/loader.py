@@ -150,25 +150,38 @@ def get_building_name_translations() -> Dict[str, Dict[str, str]]:
 
 
 @st.cache_data(ttl=_CACHE_TTL)
-def get_forgehx_data() -> Dict[str, str]:
-    """Fetch the ForgeHX image hash map from the API.
+def load_forgehx_asset_map() -> Dict[str, str]:
+    """Return the complete ForgeHX asset-path to cache-hash mapping."""
+    data = _make_request("/data/forgehx", fatal=False)
+    if not isinstance(data, dict):
+        if data is not None:
+            logger.warning(
+                "Unexpected ForgeHX response type: %s", type(data).__name__
+            )
+        return {}
+    return {
+        str(path): str(asset_hash)
+        for path, asset_hash in data.items()
+        if isinstance(path, str) and isinstance(asset_hash, (str, int))
+    }
 
-    Returns a dict mapping asset paths to their cache-buster hashes,
-    filtered to city building images only. Used by building_images.py
-    to construct full CDN image URLs.
+
+@st.cache_data(ttl=_CACHE_TTL)
+def get_forgehx_data() -> Dict[str, str]:
+    """Return the ForgeHX image hash map filtered to building images.
+
+    Used by building_images.py to construct full CDN image URLs.
 
     Returns:
         Dict of {'/city/buildings/W_SS_XXX.png': 'hash', ...}
     """
-    data = _make_request("/data/forgehx")
-    if not data:
-        return {}
+    data = load_forgehx_asset_map()
     return {
-        k: v
-        for k, v in data.items()
-        if k.startswith("/city/buildings/")
-        and k.endswith(".png")
-        and "/textures/" not in k
+        path: asset_hash
+        for path, asset_hash in data.items()
+        if path.startswith("/city/buildings/")
+        and path.endswith(".png")
+        and "/textures/" not in path
     }
 
 
@@ -217,6 +230,7 @@ def load_building_entity_lookup() -> Dict[str, Any]:
 def clear_cache():
     """Clear all cached API data. Call this after a known data update."""
     load_and_process_data.clear()
+    load_forgehx_asset_map.clear()
     get_forgehx_data.clear()
     get_building_name_translations.clear()
     load_building_entity_lookup.clear()
