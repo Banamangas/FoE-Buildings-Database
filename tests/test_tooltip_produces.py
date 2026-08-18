@@ -389,16 +389,17 @@ def test_motivated_random_product_marks_the_group():
     ]
 
 
-def test_unit_icons_use_deterministic_mappings_then_exact_id_fallback(monkeypatch):
-    def fake_resolve_game_icon(key, accessible_name, entity_asset_id=None):
+def test_unit_icons_use_exact_id_then_bound_military_fallback():
+    resolved_keys = []
+
+    def fake_icon_resolver(key, accessible_name, entity_asset_id):
+        resolved_keys.append(key)
         urls = {
             "rogue": "rogue.png",
             "chivalry": "chivalry.png",
-            "military": "military.png",
         }
         return ResolvedIcon(key, urls.get(key), accessible_name)
 
-    monkeypatch.setattr(tooltip, "resolve_game_icon", fake_resolve_game_icon)
     entity = production_entity(
         option(
             86400,
@@ -408,13 +409,14 @@ def test_unit_icons_use_deterministic_mappings_then_exact_id_fallback(monkeypatc
         )
     )
 
-    result = _render_produces(entity, "en")
+    result = _render_produces(entity, "en", fake_icon_resolver)
 
     assert [(row.icon.key, row.icon.url) for row in result.rows] == [
         ("rogue", "rogue.png"),
         ("chivalry", "chivalry.png"),
-        ("future_scout", "military.png"),
+        ("future_scout", None),
     ]
+    assert resolved_keys == ["rogue", "chivalry", "future_scout", "military"]
 
 
 def test_unknown_generic_reward_retains_reward_id_and_quantity():

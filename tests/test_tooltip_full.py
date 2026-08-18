@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+from foe_buildings.ui import tooltip
 from foe_buildings.ui.tooltip import render_building_tooltip
 from tests.fixtures.pendragon_tooltip import PENDRAGON_TOOLTIP_ENTITY
 
@@ -241,3 +242,104 @@ def test_full_tooltip_preserves_accessible_labels_with_exact_icons():
     )
     assert trait_row.icon.key == "icon_unique_building"
     assert trait_row.show_label is True
+
+
+def test_full_tooltip_loads_one_forgehx_map_for_every_icon(monkeypatch):
+    asset_map = {
+        "/shared/icons/size.png": "size-hash",
+        "/shared/gui/buffbar/buffbar_icon_buff_unconnected.png": "road-hash",
+        "/shared/icons/money.png": "money-hash",
+        "/shared/icons/coin_production.png": "coin-boost-hash",
+        "/shared/icons/strategy_points.png": "fp-hash",
+        "/shared/icons/supplies.png": "supplies-hash",
+        "/shared/icons/icon_unique_building.png": "trait-hash",
+    }
+    loader_calls = []
+
+    def load_asset_map():
+        loader_calls.append(True)
+        return asset_map
+
+    monkeypatch.setattr(tooltip.tooltip_icons, "load_forgehx_asset_map", load_asset_map)
+    entity = {
+        "components": {
+            "AllAge": {
+                "placement": {"size": {"x": 2, "y": 1}},
+                "staticResources": {"resources": {"resources": {"money": 10}}},
+                "boosts": {"boosts": [{"type": "coin_production", "value": 5}]},
+                "production": {
+                    "options": [
+                        {
+                            "time": 3600,
+                            "products": [
+                                {
+                                    "type": "resources",
+                                    "playerResources": {
+                                        "resources": {"strategy_points": 2}
+                                    },
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "buildResourcesRequirement": {"cost": {"resources": {"supplies": 100}}},
+                "cityLimit": {"buildingFamily": "TestFamily"},
+            }
+        }
+    }
+
+    sections = render_building_tooltip(entity, "en")
+
+    assert loader_calls == [True]
+    resolved_urls = {
+        row.icon.key: row.icon.url
+        for section in sections
+        for row in section.rows
+        if row.icon is not None
+    }
+    assert resolved_urls == {
+        "size": "https://foezz.innogamescdn.com/assets/shared/icons/size-size-hash.png",
+        "/shared/gui/buffbar/buffbar_icon_buff_unconnected.png": (
+            "https://foezz.innogamescdn.com/assets/shared/gui/buffbar/"
+            "buffbar_icon_buff_unconnected-road-hash.png"
+        ),
+        "money": "https://foezz.innogamescdn.com/assets/shared/icons/money-money-hash.png",
+        "coin_production": (
+            "https://foezz.innogamescdn.com/assets/shared/icons/"
+            "coin_production-coin-boost-hash.png"
+        ),
+        "strategy_points": (
+            "https://foezz.innogamescdn.com/assets/shared/icons/"
+            "strategy_points-fp-hash.png"
+        ),
+        "supplies": (
+            "https://foezz.innogamescdn.com/assets/shared/icons/"
+            "supplies-supplies-hash.png"
+        ),
+        "icon_unique_building": (
+            "https://foezz.innogamescdn.com/assets/shared/icons/"
+            "icon_unique_building-trait-hash.png"
+        ),
+    }
+
+
+def test_full_tooltip_asset_map_injection_skips_loader_without_mutation(monkeypatch):
+    def fail_if_loaded():
+        raise AssertionError("explicit asset-map injection must skip the loader")
+
+    monkeypatch.setattr(tooltip.tooltip_icons, "load_forgehx_asset_map", fail_if_loaded)
+    asset_map = {"/shared/icons/money.png": "money-hash"}
+    original = dict(asset_map)
+    entity = {
+        "components": {
+            "AllAge": {"staticResources": {"resources": {"resources": {"money": 10}}}}
+        }
+    }
+
+    sections = render_building_tooltip(entity, "en", asset_map=asset_map)
+
+    money_row = _rows_by_section(sections)["provides"][0]
+    assert money_row.icon.url == (
+        "https://foezz.innogamescdn.com/assets/shared/icons/money-money-hash.png"
+    )
+    assert asset_map == original

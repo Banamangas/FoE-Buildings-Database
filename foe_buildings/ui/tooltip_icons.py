@@ -63,10 +63,32 @@ LOCAL_ICON_FALLBACKS = {
     "ally_room": "ally_room",
     "qa_capacity": "qa_capacity",
     "qa_per_hour": "qa_per_hour",
+    "guild_raids_action_points_collection": "qa_per_hour",
+    "guild_raids_action_points_capacity": "qa_capacity",
     "att_boost_attacker": "red_attack",
     "def_boost_attacker": "red_defense",
     "att_boost_defender": "blue_attack",
     "def_boost_defender": "blue_defense",
+    "att_boost_attacker_gbg": "red_gbg_attack",
+    "def_boost_attacker_gbg": "red_gbg_defense",
+    "att_boost_defender_gbg": "blue_gbg_attack",
+    "def_boost_defender_gbg": "blue_gbg_defense",
+    "att_boost_attacker_gex": "red_ge_attack",
+    "def_boost_attacker_gex": "red_ge_defense",
+    "att_boost_defender_gex": "blue_ge_attack",
+    "def_boost_defender_gex": "blue_ge_defense",
+    "att_boost_attacker_gr": "red_qi_attack",
+    "def_boost_attacker_gr": "red_qi_defense",
+    "att_boost_defender_gr": "blue_qi_attack",
+    "def_boost_defender_gr": "blue_qi_defense",
+    "next_age_random_goods": "next_age_goods",
+    "random_goods_of_previous_age": "prev_age_goods",
+    "random_goods_chest": "goods",
+    "special_goods": "special_goods",
+    "all_goods_of_next_age": "next_age_goods",
+    "all_goods_of_previous_age": "prev_age_goods",
+    "treasury_goods_of_next_age": "guild_goods",
+    "treasury_goods_of_previous_age": "guild_goods",
     "coin_production": "coin_%",
     "supply_production": "supplies_%",
     "forge_points_production": "fp_boost",
@@ -93,9 +115,7 @@ def _append_unique(candidates: List[str], candidate: Optional[str]) -> None:
         candidates.append(candidate)
 
 
-def icon_candidates(
-    icon_key: str, entity_asset_id: Optional[str] = None
-) -> List[str]:
+def icon_candidates(icon_key: str, entity_asset_id: Optional[str] = None) -> List[str]:
     """Return Forge Hammer's ordered ForgeHX candidates without duplicates."""
     if icon_key.startswith("/"):
         return [icon_key]
@@ -134,7 +154,9 @@ def resolve_game_icon(
     for candidate in icon_candidates(icon_key, entity_asset_id):
         asset_hash = assets.get(candidate)
         if asset_hash:
-            return ResolvedIcon(icon_key, _hashed_url(candidate, asset_hash), accessible_name)
+            return ResolvedIcon(
+                icon_key, _hashed_url(candidate, asset_hash), accessible_name
+            )
 
     local_icon = LOCAL_ICON_FALLBACKS.get(icon_key)
     if local_icon:
