@@ -167,6 +167,27 @@ def test_selected_era_static_resources_add_numeric_conflicts_without_mutation():
     assert entity == original
 
 
+def test_selected_empty_static_resources_retains_all_age_resources_without_mutation():
+    entity = {
+        "components": {
+            "AllAge": {
+                "staticResources": {"resources": {"resources": {"medals": 100}}}
+            },
+            "BronzeAge": {"staticResources": {}},
+        }
+    }
+    original = deepcopy(entity)
+
+    sections = render_building_tooltip(entity, "en", era_key="BronzeAge")
+
+    rows_by_section = _rows_by_section(sections)
+    assert "provides" in rows_by_section
+    assert [(row.icon.key, row.value) for row in rows_by_section["provides"]] == [
+        ("medals", "100")
+    ]
+    assert entity == original
+
+
 def test_selected_empty_boost_list_does_not_erase_all_age_boosts():
     entity = {
         "components": {

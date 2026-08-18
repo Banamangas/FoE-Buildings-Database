@@ -235,7 +235,9 @@ def _resolve_entity_for_era(
             merged_boost_component["boosts"] = [*shared_boosts, *selected_boosts]
             all_age["boosts"] = merged_boost_component
 
-        if shared_resource_component and selected_resource_component:
+        if shared_resource_component and isinstance(
+            era_components.get("staticResources"), dict
+        ):
             merged_resources = deepcopy(shared_resources)
             for resource, selected_value in selected_resources.items():
                 shared_value = shared_resources.get(resource)
