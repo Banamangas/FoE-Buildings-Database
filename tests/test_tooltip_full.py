@@ -205,6 +205,32 @@ def test_selected_empty_boost_list_does_not_erase_all_age_boosts():
     assert any(row.label == "Coin %" and row.value == "10%" for row in provides)
 
 
+def test_selected_era_boosts_override_shared_boosts_of_same_type():
+    """Avoid duplicate rows when the same boost is declared in AllAge and the era."""
+    entity = {
+        "components": {
+            "AllAge": {
+                "boosts": {"boosts": [{"type": "att_boost_attacker", "value": 21}]},
+            },
+            "BronzeAge": {
+                "boosts": {"boosts": [{"type": "att_boost_attacker", "value": 21}]},
+            },
+        }
+    }
+    original = deepcopy(entity)
+
+    sections = render_building_tooltip(entity, "en", era_key="BronzeAge")
+
+    red_attack_rows = [
+        row
+        for row in _rows_by_section(sections)["provides"]
+        if row.label == "Red Attack"
+    ]
+    assert len(red_attack_rows) == 1
+    assert red_attack_rows[0].value == "21%"
+    assert entity == original
+
+
 def test_full_tooltip_preserves_accessible_labels_with_exact_icons():
     entity = {
         "components": {

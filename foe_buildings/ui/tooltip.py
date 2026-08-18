@@ -237,7 +237,17 @@ def _resolve_entity_for_era(
                 **shared_boost_component,
                 **selected_boost_component,
             }
-            merged_boost_component["boosts"] = [*shared_boosts, *selected_boosts]
+            selected_keys = {
+                (b.get("type"), b.get("targetedFeature") or "all")
+                for b in selected_boosts
+            }
+            merged_boosts = [
+                b
+                for b in shared_boosts
+                if (b.get("type"), b.get("targetedFeature") or "all")
+                not in selected_keys
+            ] + list(selected_boosts)
+            merged_boost_component["boosts"] = merged_boosts
             all_age["boosts"] = merged_boost_component
 
         if shared_resource_component and isinstance(
@@ -725,16 +735,9 @@ def _make_non_army_rows(
     rows = []
     for boost in boosts:
         boost_type = boost.get("type", "")
-        if boost_type in _COMBINED_ARMY_TYPES:
+        if boost_type in _COMBINED_ARMY_TYPES or boost_type in _ARMY_BOOST_PARTNERS:
             continue
         feature = boost.get("targetedFeature") or "all"
-        partner_type = _ARMY_BOOST_PARTNERS.get(boost_type)
-        if partner_type and any(
-            candidate.get("type") == partner_type
-            and (candidate.get("targetedFeature") or "all") == feature
-            for candidate in boosts
-        ):
-            continue
         label = _with_feature_context(
             _boost_label(boost_type, lang_code), feature, lang_code
         )
