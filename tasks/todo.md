@@ -142,3 +142,22 @@ Live limitation: `.streamlit/secrets.toml` and `FOE_API_KEY` were absent, and no
 Streamlit app was already running. An authenticated API/CDN or browser render was
 therefore not available without new credentials/authority; no live result is
 claimed.
+
+## Final whole-branch review fixes
+
+- [x] Make Building Details tabs stateful/lazy so the 40 MB lookup loads only when
+  the In-Game Tooltip tab is open.
+- [x] Load the ForgeHX asset map once per tooltip assembly instead of once per icon.
+- [x] Additively merge overlapping AllAge and selected-era static resources.
+- [x] Prefer resolved generic-reward quantities over product-reference fallback
+  quantities and support unit-type generic rewards.
+- [x] Implement player-versus-treasury resource icon mappings from Forge Hammer.
+- [x] Wire existing QI and single-stat GE/GBG/QI local fallbacks to raw game keys;
+  keep combined boosts and military neutral when no semantically valid local asset
+  exists.
+- [x] Retain the approved rows-before-random-groups renderer contract; the final
+  review's interleaving Minor was not adopted because it conflicts with Task 5's
+  approved ordering and would materially expand the model.
+- [x] Add representative French model/HTML coverage and remove range whitespace.
+- [ ] Run focused tests after each group, then full tests, lint, types, locale JSON,
+  range `git diff --check`, GitNexus detection, and final re-review.
