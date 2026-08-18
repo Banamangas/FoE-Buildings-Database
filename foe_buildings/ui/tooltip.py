@@ -379,6 +379,9 @@ def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
 def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
     """Return escaped HTML for one independent random-production pool."""
     accessible_text = _escaped(translations.get_text("random_production", lang_code))
+    header = (
+        f'<div class="tooltip-random-header">{accessible_text}</div>'
+    )
     outcomes = []
     for outcome in group.outcomes:
         probability = _escaped(f"{outcome.probability}%")
@@ -407,7 +410,7 @@ def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
     return (
         '<div class="tooltip-random-group" role="group" '
         f'aria-label="{accessible_text}" '
-        f'title="{accessible_text}">{metadata_html}{"".join(outcomes)}</div>'
+        f'title="{accessible_text}">{header}{"".join(outcomes)}{metadata_html}</div>'
     )
 
 

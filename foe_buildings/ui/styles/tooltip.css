@@ -31,11 +31,22 @@
 }
 
 .tooltip-random-group {
+  display: inline-block;
+  width: auto;
+  min-width: 220px;
+  max-width: 100%;
   margin: 0.35rem 0;
   padding: 0.35rem 0.5rem;
   border: 2px solid color-mix(in srgb, #c694ff 70%, transparent);
   border-radius: 0.45rem;
   background: color-mix(in srgb, #7d4ca5 16%, transparent);
+}
+
+.tooltip-random-header {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid color-mix(in srgb, #c694ff 40%, transparent);
 }
 
 .tooltip-random-outcome {

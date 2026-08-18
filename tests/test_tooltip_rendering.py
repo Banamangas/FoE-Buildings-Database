@@ -133,15 +133,15 @@ def test_random_groups_have_separate_styled_containers_and_probabilities():
     )
 
 
-def test_random_group_uses_french_accessible_text_without_visible_label():
+def test_random_group_uses_french_accessible_text_with_visible_label():
     html = _random_group_html(random_group("money", 10, 25), "fr")
 
     assert 'aria-label="Production aléatoire"' in html
     assert 'title="Production aléatoire"' in html
-    assert ">Production aléatoire<" not in html
+    assert ">Production aléatoire<" in html
 
 
-def test_random_group_renders_its_duration_and_markers_without_visible_label():
+def test_random_group_renders_its_duration_and_markers_with_visible_label():
     group = random_group("money", 10, 25, duration=86400)
     group.markers.append(
         ResolvedIcon("when_motivated", "https://cdn/motivated.png", "Motivated")
@@ -151,7 +151,7 @@ def test_random_group_renders_its_duration_and_markers_without_visible_label():
 
     assert ">1d<" in html
     assert 'src="https://cdn/motivated.png"' in html
-    assert ">Random production<" not in html
+    assert ">Random production<" in html
 
 
 def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
