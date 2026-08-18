@@ -68,24 +68,19 @@ def test_render_building_tooltip_resolves_selected_era_without_mutation():
     assert ("Forge Points", "411") in produces
     assert ("Goods", "575") in produces
     assert any(
-        label == "Legends of Camelot Selection Kit fragments"
-        and value == "5"
+        label == "Legends of Camelot Selection Kit fragments" and value == "5"
         for label, value in produces
     )
     assert any(
         label == "Mass Self-Aid Kit fragments" and value == "10"
         for label, value in produces
     )
-    motivated_rows = [
-        row for row in production_section.rows if row.label != "Coins"
-    ]
+    motivated_rows = [row for row in production_section.rows if row.label != "Coins"]
     assert all(
         "when_motivated" in [marker.key for marker in row.markers]
         for row in motivated_rows
     )
-    fragment_rows = [
-        row for row in production_section.rows if "fragments" in row.label
-    ]
+    fragment_rows = [row for row in production_section.rows if "fragments" in row.label]
     assert all(
         [marker.key for marker in row.markers]
         == ["icon_tooltip_fragment", "when_motivated"]
@@ -127,6 +122,49 @@ def test_render_building_tooltip_keeps_additive_all_age_provides():
     assert ("Supplies", "200") in provides
     assert ("Coin %", "10%") in provides
     assert ("Goods Boost", "20%") in provides
+
+
+def test_selected_era_static_resources_add_numeric_conflicts_without_mutation():
+    entity = {
+        "components": {
+            "AllAge": {
+                "staticResources": {
+                    "resources": {
+                        "resources": {
+                            "medals": 100,
+                            "shared_only": 7,
+                            "conflict_label": "AllAge",
+                        }
+                    }
+                }
+            },
+            "BronzeAge": {
+                "staticResources": {
+                    "resources": {
+                        "resources": {
+                            "medals": 25,
+                            "selected_only": 9,
+                            "conflict_label": "BronzeAge",
+                        }
+                    }
+                }
+            },
+        }
+    }
+    original = deepcopy(entity)
+
+    sections = render_building_tooltip(entity, "en", era_key="BronzeAge")
+
+    provides = {
+        row.icon.key: row.value for row in _rows_by_section(sections)["provides"]
+    }
+    assert provides == {
+        "medals": "125",
+        "shared_only": "7",
+        "conflict_label": "BronzeAge",
+        "selected_only": "9",
+    }
+    assert entity == original
 
 
 def test_selected_empty_boost_list_does_not_erase_all_age_boosts():

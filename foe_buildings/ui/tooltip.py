@@ -87,6 +87,25 @@ _RESOURCE_ICON_KEYS = {
     "guild_goods": "treasury_goods",
 }
 
+_PLAYER_RESOURCE_ICON_KEYS = {
+    "era_goods": "all_goods_of_age",
+    "random_good_of_next_age": "next_age_random_goods",
+    "random_good_of_previous_age": "random_goods_of_previous_age",
+    "random_good_of_age": "random_goods_chest",
+    "random_good_of_age_1": "random_goods_chest",
+    "random_good_of_age_2": "random_goods_chest",
+    "random_good_of_age_3": "random_goods_chest",
+    "each_special_goods_up_to_age": "special_goods",
+}
+
+_TREASURY_RESOURCE_ICON_KEYS = {
+    "era_goods": "treasury_goods",
+    "all_goods_of_age": "treasury_goods",
+    "random_good_of_age": "treasury_goods",
+    "all_goods_of_next_age": "treasury_goods_of_next_age",
+    "all_goods_of_previous_age": "treasury_goods_of_previous_age",
+}
+
 _RESOURCE_TEXT_KEYS = {
     "coins": "tooltip_resource_coins",
     "forge_points": "tooltip_resource_forge_points",
@@ -217,7 +236,20 @@ def _resolve_entity_for_era(
             all_age["boosts"] = merged_boost_component
 
         if shared_resource_component and selected_resource_component:
-            merged_resources = {**shared_resources, **selected_resources}
+            merged_resources = deepcopy(shared_resources)
+            for resource, selected_value in selected_resources.items():
+                shared_value = shared_resources.get(resource)
+                both_numeric = (
+                    isinstance(shared_value, (int, float))
+                    and not isinstance(shared_value, bool)
+                    and isinstance(selected_value, (int, float))
+                    and not isinstance(selected_value, bool)
+                )
+                merged_resources[resource] = (
+                    shared_value + selected_value
+                    if both_numeric
+                    else deepcopy(selected_value)
+                )
             merged_resource_component = {
                 **shared_resource_component,
                 **selected_resource_component,
@@ -589,11 +621,19 @@ def _render_provides(entity: Dict[str, Any], lang_code: str) -> List[TooltipRow]
     return rows
 
 
-def _render_resources(resources: Dict[str, Any], lang_code: str) -> List[TooltipRow]:
+def _render_resources(
+    resources: Dict[str, Any], lang_code: str, resource_context: str
+) -> List[TooltipRow]:
     rows = []
+    context_icon_keys = (
+        _TREASURY_RESOURCE_ICON_KEYS
+        if resource_context == "guildResources"
+        else _PLAYER_RESOURCE_ICON_KEYS
+    )
     for resource, amount in (resources or {}).items():
         if amount:
-            label, icon_key = _resource_display(resource, lang_code)
+            label, default_icon_key = _resource_display(resource, lang_code)
+            icon_key = context_icon_keys.get(resource, default_icon_key)
             rows.append(
                 TooltipRow(
                     icon=_icon(icon_key, label),
@@ -771,18 +811,32 @@ def _generic_reward_display(
     name_match = re.match(r"^([+\-]?\d+)x?\s+(.*)$", reward_name)
     parsed_amount = int(name_match.group(1)) if name_match else None
     parsed_name = name_match.group(2) if name_match else reward_name
-    amount = (
-        reward_ref.get("amount")
-        or reward.get("totalAmount")
-        or reward.get("amount")
-        or parsed_amount
-        or 1
+    amount = next(
+        (
+            candidate
+            for candidate in (
+                reward.get("totalAmount"),
+                reward.get("amount"),
+                parsed_amount,
+                reward_ref.get("amount"),
+            )
+            if candidate is not None
+        ),
+        1,
     )
 
     if reward.get("type") == "resource" and reward.get("subType"):
         subtype = reward["subType"]
         label, _ = _resource_display(subtype, lang_code)
         return TooltipRow(icon=_icon(subtype, label), label=label, value=str(amount))
+
+    if reward.get("type") == "unit" and reward.get("subType"):
+        label = parsed_name or reward_id or ""
+        return TooltipRow(
+            icon=_unit_icon(str(reward["subType"]), label),
+            label=label,
+            value=str(amount),
+        )
 
     icon_asset = reward.get("iconAssetName")
     markers = []
@@ -841,23 +895,24 @@ def _render_product(
     if ptype == "resources":
         rows.extend(
             _render_resources(
-                product.get("playerResources", {}).get("resources"), lang_code
+                product.get("playerResources", {}).get("resources"),
+                lang_code,
+                "playerResources",
             )
         )
     elif ptype == "guildResources":
         rows.extend(
             _render_resources(
-                product.get("guildResources", {}).get("resources"), lang_code
+                product.get("guildResources", {}).get("resources"),
+                lang_code,
+                "guildResources",
             )
         )
     elif ptype == "genericReward":
         reward_ref = product.get("reward", {})
         reward_id = reward_ref.get("id") or product.get("rewardId")
         reward = lookup.get(reward_id, {}) if reward_id and lookup else {}
-        fallback_reward = {
-            "name": reward_id,
-            "amount": product.get("amount", 1),
-        }
+        fallback_reward = {"name": reward_id}
         rows.append(
             _generic_reward_display(
                 reward or fallback_reward,
