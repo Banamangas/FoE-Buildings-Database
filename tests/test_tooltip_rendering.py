@@ -44,6 +44,10 @@ def test_quantitative_row_hides_visible_label_but_keeps_accessible_name():
     assert '<img src="https://cdn/money.png"' in html
     assert ">1,000<" in html
     assert ">Coins:" not in html
+    assert (
+        '<div class="foe-tooltip-row" role="group" '
+        'aria-label="Coins: 1,000" title="Coins: 1,000">' in html
+    )
     assert 'aria-label="Coins: 1,000"' in html
     assert 'title="Coins: 1,000"' in html
 
@@ -71,6 +75,14 @@ def test_rendering_escapes_api_derived_accessible_text():
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
     assert "&quot;x&quot;" in html
+
+
+def test_row_without_a_resolved_icon_uses_missing_icon_placeholder():
+    row = TooltipRow(None, "Unknown reward", "7")
+
+    html = _tooltip_row_html(row, "en")
+
+    assert '<span class="tooltip-icon-missing" aria-hidden="true">?</span>' in html
 
 
 def test_row_escapes_icon_suffix_and_marker_metadata():
@@ -111,7 +123,21 @@ def test_random_groups_have_separate_styled_containers_and_probabilities():
     assert html.count('class="tooltip-random-group"') == 2
     assert ">25%<" in html
     assert ">75%<" in html
-    assert html.count('aria-label="Random production') == 2
+    assert (
+        html.count(
+            '<div class="tooltip-random-group" role="group" '
+            'aria-label="Random production" title="Random production">'
+        )
+        == 2
+    )
+
+
+def test_random_group_uses_french_accessible_text_without_visible_label():
+    html = _random_group_html(random_group("money", 10, 25), "fr")
+
+    assert 'aria-label="Production aléatoire"' in html
+    assert 'title="Production aléatoire"' in html
+    assert ">Production aléatoire<" not in html
 
 
 def test_random_group_renders_its_duration_and_markers_without_visible_label():

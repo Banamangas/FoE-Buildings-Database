@@ -282,9 +282,7 @@ def _escaped(value: object) -> str:
 
 
 def _tooltip_icon_html(icon: Optional[ResolvedIcon], css_class: str) -> str:
-    if icon is None:
-        return ""
-    if icon.url is None:
+    if icon is None or icon.url is None:
         return '<span class="tooltip-icon-missing" aria-hidden="true">?</span>'
     accessible_name = _escaped(icon.accessible_name)
     return (
@@ -312,7 +310,7 @@ def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
         _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in row.markers
     )
     return (
-        f'<div class="foe-tooltip-row" aria-label="{accessible_text}" '
+        f'<div class="foe-tooltip-row" role="group" aria-label="{accessible_text}" '
         f'title="{accessible_text}">{"".join(parts)}</div>'
     )
 
@@ -346,7 +344,8 @@ def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
         else ""
     )
     return (
-        f'<div class="tooltip-random-group" aria-label="{accessible_text}" '
+        '<div class="tooltip-random-group" role="group" '
+        f'aria-label="{accessible_text}" '
         f'title="{accessible_text}">{metadata_html}{"".join(outcomes)}</div>'
     )
 
