@@ -79,7 +79,8 @@ military local fallback without guessing classes from unit names.
 
 ## Task 6 Review
 
-Status: `DONE_WITH_CONCERNS` on base `6cdc62d`.
+Worker handoff status: `DONE_WITH_CONCERNS` on base `6cdc62d`. The controller
+subsequently committed Task 6 as `e74cbc0`.
 
 Cleanup proof:
 
@@ -92,8 +93,9 @@ Cleanup proof:
   Repeating the consumer search returned only
   `tests/test_tooltip_icons.py:92`, the preserved negative sentinel.
 - `AGENTS.md` and `CLAUDE.md` retain pre-existing worktree changes;
-  `foe_buildings/config/constants.py` was not changed. Nothing was staged or
-  committed.
+  `foe_buildings/config/constants.py` was not changed. At worker handoff, nothing
+  was staged or committed; the controller subsequently committed Task 6 as
+  `e74cbc0`.
 
 Automated verification:
 
