@@ -20,6 +20,7 @@ import streamlit as st
 from foe_buildings.config import get_api_config, logger
 
 _API_TIMEOUT = 30  # seconds per request
+_ENTITY_LOOKUP_TIMEOUT = 120  # seconds for the ~40 MB entity lookup payload
 _PAGE_SIZE = 1000  # max page size allowed by the API
 _CACHE_TTL = (
     82800  # 23 hours in seconds — data refreshes server-side once daily at ~18:00
@@ -30,7 +31,8 @@ def _make_request(
     endpoint: str,
     params: Optional[Dict] = None,
     fatal: bool = True,
-) -> Optional[Dict[str, Any]]:
+    timeout: int = _API_TIMEOUT,
+) -> Optional[Any]:
     """Make an authenticated GET request to the API.
 
     Args:
@@ -50,9 +52,7 @@ def _make_request(
     headers = {"X-API-Key": api_key}
 
     try:
-        response = requests.get(
-            url, headers=headers, params=params, timeout=_API_TIMEOUT
-        )
+        response = requests.get(url, headers=headers, params=params, timeout=timeout)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as e:
@@ -150,31 +150,86 @@ def get_building_name_translations() -> Dict[str, Dict[str, str]]:
 
 
 @st.cache_data(ttl=_CACHE_TTL)
-def get_forgehx_data() -> Dict[str, str]:
-    """Fetch the ForgeHX image hash map from the API.
+def load_forgehx_asset_map() -> Dict[str, str]:
+    """Return the complete ForgeHX asset-path to cache-hash mapping."""
+    data = _make_request("/data/forgehx", fatal=False)
+    if not isinstance(data, dict):
+        if data is not None:
+            logger.warning("Unexpected ForgeHX response type: %s", type(data).__name__)
+        return {}
+    return {
+        str(path): str(asset_hash)
+        for path, asset_hash in data.items()
+        if isinstance(path, str) and isinstance(asset_hash, (str, int))
+    }
 
-    Returns a dict mapping asset paths to their cache-buster hashes,
-    filtered to city building images only. Used by building_images.py
-    to construct full CDN image URLs.
+
+@st.cache_data(ttl=_CACHE_TTL)
+def get_forgehx_data() -> Dict[str, str]:
+    """Return the ForgeHX image hash map filtered to building images.
+
+    Used by building_images.py to construct full CDN image URLs.
 
     Returns:
         Dict of {'/city/buildings/W_SS_XXX.png': 'hash', ...}
     """
-    data = _make_request("/data/forgehx")
+    data = load_forgehx_asset_map()
+    return {
+        path: asset_hash
+        for path, asset_hash in data.items()
+        if path.startswith("/city/buildings/")
+        and path.endswith(".png")
+        and "/textures/" not in path
+    }
+
+
+@st.cache_data(ttl=_CACHE_TTL)
+def load_building_entity_lookup() -> Dict[str, Any]:
+    """Fetch the raw building entity lookup JSON from the API.
+
+    Returns a dict mapping building ID (e.g. ``W_MultiAge_HAL19A1``) to the
+    entity record. The API may serialize this file as either a mapping or a
+    list of records; both forms are normalized here. Cached for 23 hours to
+    match the daily data refresh cadence.
+
+    Returns:
+        Dict[str, Any]: empty dict if the request fails or returns nothing.
+    """
+    data = _make_request(
+        "/data/download/building_entity_lookup.json",
+        fatal=False,
+        timeout=_ENTITY_LOOKUP_TIMEOUT,
+    )
     if not data:
         return {}
-    return {
-        k: v
-        for k, v in data.items()
-        if k.startswith("/city/buildings/")
-        and k.endswith(".png")
-        and "/textures/" not in k
-    }
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        lookup = {}
+        for entity in data:
+            if not isinstance(entity, dict):
+                continue
+            building_id = entity.get("id")
+            if not building_id:
+                identifier = entity.get("identifier", "")
+                prefix = "building_entity_"
+                if identifier.startswith(prefix):
+                    building_id = identifier[len(prefix) :]
+            if building_id:
+                lookup[building_id] = entity
+        return lookup
+
+    logger.warning(
+        "Unexpected building entity lookup response type: %s", type(data).__name__
+    )
+    return {}
 
 
 def clear_cache():
     """Clear all cached API data. Call this after a known data update."""
     load_and_process_data.clear()
+    load_forgehx_asset_map.clear()
     get_forgehx_data.clear()
     get_building_name_translations.clear()
+    load_building_entity_lookup.clear()
     st.success("Cache cleared — data will be refreshed on next load.")

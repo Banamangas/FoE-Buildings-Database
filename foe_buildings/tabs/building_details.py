@@ -1,10 +1,14 @@
+import logging
+
 import pandas as pd
 import streamlit as st
 
 from foe_buildings import config
 from foe_buildings import i18n as translations
+from foe_buildings.data import loader as data_loader
 from foe_buildings.data.calculations import combine_army_with_ge_gbg
 from foe_buildings.ui import grid as ui_components
+from foe_buildings.ui import tooltip as tooltip_renderer
 
 
 def _render_stats_table(stats_data: list, lang_code: str) -> None:
@@ -69,41 +73,13 @@ def render_building_details(
 
         st.markdown("---")
 
-    # Apply army stats combination if enabled
-    if combine_army_stats:
-        df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
-
-    _building_match = (
+    raw_building_match = (
         df_era_filtered[df_era_filtered[config.COL_NAME] == selected_building]
         if selected_building
         else pd.DataFrame()
     )
-    if selected_building and selected_building != "" and not _building_match.empty:
-        # Get the selected building data from the era-filtered dataframe
-        building_data = _building_match.iloc[0].copy()
-
-        # Apply per square calculation if enabled
-        if (
-            show_per_square
-            and config.COL_SIZE in building_data
-            and building_data[config.COL_SIZE] > 0
-        ):
-            building_size = building_data[config.COL_SIZE]
-            # Apply per square calculation to numeric columns
-            for col in building_data.index:
-                if (
-                    col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                    and pd.api.types.is_numeric_dtype(type(building_data[col]))
-                    and not pd.isna(building_data[col])
-                ):
-                    building_data[col] = round(building_data[col] / building_size, 8)
-
-        # Display building name as header
-        st.markdown(f"### {selected_building}")
-
-        # Show per square mode info if active
-        if show_per_square:
-            st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
+    if selected_building and selected_building != "" and not raw_building_match.empty:
+        raw_building_data = raw_building_match.iloc[0].copy()
 
         # Function to check if an icon exists for a column
         def has_icon(col_name: str) -> bool:
@@ -112,69 +88,151 @@ def render_building_details(
                 and ui_components.get_icon_base64(col_name) is not None
             )
 
-        # --- Complete Stats Table with Image ---
-        st.subheader(f"📊 {translations.get_text('complete_stats_table', lang_code)}")
+        # --- Complete Stats Table with Image / In-Game Tooltip ---
+        tab_stats, tab_tooltip = st.tabs(
+            [
+                translations.get_text("complete_stats_table", lang_code),
+                translations.get_text("in_game_tooltip", lang_code),
+            ],
+            key="building_details_tabs",
+            on_change="rerun",
+        )
 
-        # Prepare data for the stats table
-        stats_data = []
+        if tab_stats.open:
+            df_stats_filtered = df_era_filtered
+            if combine_army_stats:
+                df_stats_filtered = combine_army_with_ge_gbg(df_stats_filtered)
 
-        # Get all columns from column groups in order
-        for group_key, group_info in config.COLUMN_GROUPS.items():
-            for col in group_info["columns"]:
-                if col in building_data:
-                    value = building_data[col]
+            stats_building_match = df_stats_filtered[
+                df_stats_filtered[config.COL_NAME] == selected_building
+            ]
+            stats_building_data = stats_building_match.iloc[0].copy()
 
-                    # Skip zero values and empty strings, but keep all boolean values (including False)
-                    is_boolean = isinstance(value, bool) or pd.api.types.is_bool_dtype(
-                        type(value)
-                    )
-                    if not is_boolean and (value == 0 or value == "" or pd.isna(value)):
-                        continue
-
-                    # Get translated column name
-                    translated_name = translations.translate_column(col, lang_code)
-
-                    # Format value
-                    if col in config.PERCENTAGE_COLUMNS:
-                        formatted_value = f"{value:.0f}%"
-                    elif isinstance(value, float):
-                        formatted_value = (
-                            f"{value:.2f}" if value != int(value) else f"{int(value)}"
+            # Apply per square calculation if enabled
+            if (
+                show_per_square
+                and config.COL_SIZE in stats_building_data
+                and stats_building_data[config.COL_SIZE] > 0
+            ):
+                building_size = stats_building_data[config.COL_SIZE]
+                # Apply per square calculation to numeric columns
+                for col in stats_building_data.index:
+                    if (
+                        col not in config.PER_SQUARE_EXCLUDED_COLUMNS
+                        and pd.api.types.is_numeric_dtype(
+                            type(stats_building_data[col])
                         )
-                    elif is_boolean:
-                        formatted_value = "✔️" if value else "❌"
+                        and not pd.isna(stats_building_data[col])
+                    ):
+                        stats_building_data[col] = round(
+                            stats_building_data[col] / building_size, 8
+                        )
+
+            # Show per square mode info if active
+            if show_per_square:
+                st.info(
+                    "📐 " + translations.get_text("per_square_mode_active", lang_code)
+                )
+
+            # Prepare data for the stats table
+            stats_data = []
+
+            # Get all columns from column groups in order
+            for group_key, group_info in config.COLUMN_GROUPS.items():
+                for col in group_info["columns"]:
+                    if col in stats_building_data:
+                        value = stats_building_data[col]
+
+                        # Skip zero values and empty strings, but keep all boolean values (including False)
+                        is_boolean = isinstance(
+                            value, bool
+                        ) or pd.api.types.is_bool_dtype(type(value))
+                        if not is_boolean and (
+                            value == 0 or value == "" or pd.isna(value)
+                        ):
+                            continue
+
+                        # Get translated column name
+                        translated_name = translations.translate_column(col, lang_code)
+
+                        # Format value
+                        if col in config.PERCENTAGE_COLUMNS:
+                            formatted_value = f"{value:.0f}%"
+                        elif isinstance(value, float):
+                            formatted_value = (
+                                f"{value:.2f}"
+                                if value != int(value)
+                                else f"{int(value)}"
+                            )
+                        elif is_boolean:
+                            formatted_value = "✔️" if value else "❌"
+                        else:
+                            formatted_value = str(value)
+
+                        # Check if column has an icon
+                        icon_url = None
+                        if col not in config.ICON_EXCLUDED_COLUMNS:
+                            icon_base64 = ui_components.get_icon_base64(col)
+                            if icon_base64:
+                                icon_url = f"data:image/png;base64,{icon_base64}"
+
+                        stats_data.append(
+                            {
+                                "Icon": icon_url,
+                                "Statistic": translated_name,
+                                "Value": formatted_value,
+                            }
+                        )
+
+            with tab_stats:
+                st.markdown(f"### {selected_building}")
+                # Create layout with stats table on left and image on right
+                building_asset_id = stats_building_data.get(config.COL_ASSET_ID)
+                if building_asset_id and image_manager.has_image(building_asset_id):
+                    # Layout with table on left and image on right
+                    table_col, img_col = st.columns([2, 4])
+
+                    with table_col:
+                        _render_stats_table(stats_data, lang_code)
+
+                    with img_col:
+                        image_url = image_manager.get_building_image_url(
+                            building_asset_id
+                        )
+                        st.image(image_url, caption=selected_building, width="content")
+                else:
+                    # No image available, show table full width
+                    _render_stats_table(stats_data, lang_code)
+
+        if tab_tooltip.open:
+            with tab_tooltip:
+                try:
+                    lookup = data_loader.load_building_entity_lookup()
+                    building_id = raw_building_data.get("id")
+                    entity = lookup.get(building_id)
+                    if entity and entity.get("components"):
+                        building_asset_id = raw_building_data.get(config.COL_ASSET_ID)
+                        image_url = (
+                            image_manager.get_building_image_url(building_asset_id)
+                            if building_asset_id
+                            and image_manager.has_image(building_asset_id)
+                            else None
+                        )
+                        sections = tooltip_renderer.render_building_tooltip(
+                            entity,
+                            lang_code,
+                            building_name=selected_building,
+                            image_url=image_url,
+                            era_key=raw_building_data.get(config.COL_ERA),
+                        )
+                        tooltip_renderer.render_tooltip_sections(sections, lang_code)
                     else:
-                        formatted_value = str(value)
-
-                    # Check if column has an icon
-                    icon_url = None
-                    if col not in config.ICON_EXCLUDED_COLUMNS:
-                        icon_base64 = ui_components.get_icon_base64(col)
-                        if icon_base64:
-                            icon_url = f"data:image/png;base64,{icon_base64}"
-
-                    stats_data.append(
-                        {
-                            "Icon": icon_url,
-                            "Statistic": translated_name,
-                            "Value": formatted_value,
-                        }
+                        st.info(translations.get_text("no_tooltip_data", lang_code))
+                except Exception:
+                    logging.exception(
+                        "Failed to render in-game tooltip for %s", selected_building
                     )
-
-        # Create layout with stats table on left and image on right
-        building_asset_id = building_data.get(config.COL_ASSET_ID)
-        if building_asset_id and image_manager.has_image(building_asset_id):
-            # Layout with table on left and image on right
-            table_col, img_col = st.columns([2, 4])
-
-            with table_col:
-                _render_stats_table(stats_data, lang_code)
-
-            with img_col:
-                image_url = image_manager.get_building_image_url(building_asset_id)
-                st.image(image_url, caption=selected_building, width="content")
-        else:
-            # No image available, show table full width
-            _render_stats_table(stats_data, lang_code)
+                    st.error(translations.get_text("tooltip_render_error", lang_code))
+                    st.info(translations.get_text("no_tooltip_data", lang_code))
     else:
         st.info(translations.get_text("no_building_selected", lang_code))

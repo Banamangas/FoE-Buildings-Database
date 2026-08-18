@@ -2,6 +2,13 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def keep_tooltip_icon_tests_offline(monkeypatch):
+    monkeypatch.setattr(
+        "foe_buildings.ui.tooltip_icons.load_forgehx_asset_map", lambda: {}
+    )
+
+
 @pytest.fixture
 def sample_buildings_df():
     """A small DataFrame with representative buildings for testing."""

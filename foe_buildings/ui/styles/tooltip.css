@@ -1,0 +1,63 @@
+.foe-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.75rem;
+}
+
+.foe-tooltip-icon,
+.foe-tooltip-marker,
+.tooltip-icon-missing {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 1.5rem;
+}
+
+.foe-tooltip-icon,
+.foe-tooltip-marker {
+  object-fit: contain;
+}
+
+.tooltip-icon-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.foe-tooltip-value,
+.foe-tooltip-duration,
+.foe-tooltip-suffix {
+  line-height: 1.25;
+}
+
+.tooltip-random-group {
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.5rem;
+  border: 2px solid color-mix(in srgb, #c694ff 70%, transparent);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, #7d4ca5 16%, transparent);
+}
+
+.tooltip-random-outcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tooltip-random-outcome-value {
+  min-width: 0;
+}
+
+.tooltip-random-probability {
+  min-width: 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip-random-metadata {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
