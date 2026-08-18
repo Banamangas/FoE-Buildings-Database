@@ -430,27 +430,35 @@ def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
 def render_tooltip_sections(sections: List[TooltipSection], lang_code: str) -> None:
     """Render tooltip sections with optional titles, icons, and suffixes."""
     st.markdown(load_tooltip_css(), unsafe_allow_html=True)
-    for section in sections:
+    for index, section in enumerate(sections):
         with st.container():
             if section.header:
                 st.markdown(f"### {_escaped(section.header)}")
             if section.image_url:
                 st.image(section.image_url, width="content")
+
+            if not (section.title or section.rows or section.random_groups):
+                continue
+
+            parts: List[str] = []
             if section.title:
                 title = section.title
                 if section.shared_duration:
                     title = f"{title} ({format_time(section.shared_duration)})"
-                st.markdown(f"**{_escaped(title)}**")
+                parts.append(
+                    f'<div class="foe-tooltip-section-title">{_escaped(title)}</div>'
+                )
             for row in section.rows:
-                st.markdown(
-                    _tooltip_row_html(row, lang_code),
-                    unsafe_allow_html=True,
-                )
+                parts.append(_tooltip_row_html(row, lang_code))
             for group in section.random_groups:
-                st.markdown(
-                    _random_group_html(group, lang_code),
-                    unsafe_allow_html=True,
-                )
+                parts.append(_random_group_html(group, lang_code))
+
+            margin_class = " foe-tooltip-section-first" if index == 0 else ""
+            st.markdown(
+                f'<div class="foe-tooltip-section{margin_class}">'
+                f'{"".join(parts)}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def _render_size_time_road(

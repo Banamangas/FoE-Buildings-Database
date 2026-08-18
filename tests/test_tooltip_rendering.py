@@ -191,18 +191,12 @@ def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
     assert sum(body == load_tooltip_css() for body, _ in markdown_calls) == 1
     assert markdown_calls[1][0] == "### Test &lt;Building&gt;"
     assert image_calls == [("https://cdn/building.png", {"width": "content"})]
-    assert markdown_calls[2][0] == "**Produces (1d)**"
-    row_index = next(
-        index
-        for index, (body, _) in enumerate(markdown_calls)
-        if 'class="foe-tooltip-row"' in body
-    )
-    group_index = next(
-        index
-        for index, (body, _) in enumerate(markdown_calls)
-        if 'class="tooltip-random-group"' in body
-    )
-    assert row_index < group_index
+    rendered = markdown_calls[2][0]
+    assert '<div class="foe-tooltip-section foe-tooltip-section-first">' in rendered
+    assert '<div class="foe-tooltip-section-title">Produces (1d)</div>' in rendered
+    row_pos = rendered.find('class="foe-tooltip-row"')
+    group_pos = rendered.find('class="tooltip-random-group"')
+    assert 0 < row_pos < group_pos
 
 
 def test_renderer_emits_escaped_accessible_french_tooltip_html(monkeypatch):
@@ -253,13 +247,13 @@ def test_renderer_emits_escaped_accessible_french_tooltip_html(monkeypatch):
     tooltip.render_tooltip_sections(sections, "fr")
 
     bodies = [body for body, _ in markdown_calls]
-    assert "### Atelier &lt;royal&gt; &amp; &quot;unique&quot;" in bodies
-    assert "**Taille / Temps / Route**" in bodies
-    assert "**Fournit**" in bodies
-    assert "**Produit (1d)**" in bodies
-    assert "**Salles d&#x27;alliés**" in bodies
-    assert "**Traits**" in bodies
     rendered_html = "".join(bodies)
+    assert "### Atelier &lt;royal&gt; &amp; &quot;unique&quot;" in bodies
+    assert '<div class="foe-tooltip-section-title">Taille / Temps / Route</div>' in rendered_html
+    assert '<div class="foe-tooltip-section-title">Fournit</div>' in rendered_html
+    assert '<div class="foe-tooltip-section-title">Produit (1d)</div>' in rendered_html
+    assert '<div class="foe-tooltip-section-title">Salles d&#x27;alliés</div>' in rendered_html
+    assert '<div class="foe-tooltip-section-title">Traits</div>' in rendered_html
     assert reward_name not in rendered_html
     assert "<rare>" not in rendered_html
     assert (
