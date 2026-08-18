@@ -73,38 +73,13 @@ def render_building_details(
 
         st.markdown("---")
 
-    # Apply army stats combination if enabled
-    if combine_army_stats:
-        df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
-
-    _building_match = (
+    raw_building_match = (
         df_era_filtered[df_era_filtered[config.COL_NAME] == selected_building]
         if selected_building
         else pd.DataFrame()
     )
-    if selected_building and selected_building != "" and not _building_match.empty:
-        # Get the selected building data from the era-filtered dataframe
-        building_data = _building_match.iloc[0].copy()
-
-        # Apply per square calculation if enabled
-        if (
-            show_per_square
-            and config.COL_SIZE in building_data
-            and building_data[config.COL_SIZE] > 0
-        ):
-            building_size = building_data[config.COL_SIZE]
-            # Apply per square calculation to numeric columns
-            for col in building_data.index:
-                if (
-                    col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                    and pd.api.types.is_numeric_dtype(type(building_data[col]))
-                    and not pd.isna(building_data[col])
-                ):
-                    building_data[col] = round(building_data[col] / building_size, 8)
-
-        # Show per square mode info if active
-        if show_per_square:
-            st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
+    if selected_building and selected_building != "" and not raw_building_match.empty:
+        raw_building_data = raw_building_match.iloc[0].copy()
 
         # Function to check if an icon exists for a column
         def has_icon(col_name: str) -> bool:
@@ -124,14 +99,49 @@ def render_building_details(
         )
 
         if tab_stats.open:
+            df_stats_filtered = df_era_filtered
+            if combine_army_stats:
+                df_stats_filtered = combine_army_with_ge_gbg(df_stats_filtered)
+
+            stats_building_match = df_stats_filtered[
+                df_stats_filtered[config.COL_NAME] == selected_building
+            ]
+            stats_building_data = stats_building_match.iloc[0].copy()
+
+            # Apply per square calculation if enabled
+            if (
+                show_per_square
+                and config.COL_SIZE in stats_building_data
+                and stats_building_data[config.COL_SIZE] > 0
+            ):
+                building_size = stats_building_data[config.COL_SIZE]
+                # Apply per square calculation to numeric columns
+                for col in stats_building_data.index:
+                    if (
+                        col not in config.PER_SQUARE_EXCLUDED_COLUMNS
+                        and pd.api.types.is_numeric_dtype(
+                            type(stats_building_data[col])
+                        )
+                        and not pd.isna(stats_building_data[col])
+                    ):
+                        stats_building_data[col] = round(
+                            stats_building_data[col] / building_size, 8
+                        )
+
+            # Show per square mode info if active
+            if show_per_square:
+                st.info(
+                    "📐 " + translations.get_text("per_square_mode_active", lang_code)
+                )
+
             # Prepare data for the stats table
             stats_data = []
 
             # Get all columns from column groups in order
             for group_key, group_info in config.COLUMN_GROUPS.items():
                 for col in group_info["columns"]:
-                    if col in building_data:
-                        value = building_data[col]
+                    if col in stats_building_data:
+                        value = stats_building_data[col]
 
                         # Skip zero values and empty strings, but keep all boolean values (including False)
                         is_boolean = isinstance(
@@ -177,7 +187,7 @@ def render_building_details(
             with tab_stats:
                 st.markdown(f"### {selected_building}")
                 # Create layout with stats table on left and image on right
-                building_asset_id = building_data.get(config.COL_ASSET_ID)
+                building_asset_id = stats_building_data.get(config.COL_ASSET_ID)
                 if building_asset_id and image_manager.has_image(building_asset_id):
                     # Layout with table on left and image on right
                     table_col, img_col = st.columns([2, 4])
@@ -198,10 +208,10 @@ def render_building_details(
             with tab_tooltip:
                 try:
                     lookup = data_loader.load_building_entity_lookup()
-                    building_id = building_data.get("id")
+                    building_id = raw_building_data.get("id")
                     entity = lookup.get(building_id)
                     if entity and entity.get("components"):
-                        building_asset_id = building_data.get(config.COL_ASSET_ID)
+                        building_asset_id = raw_building_data.get(config.COL_ASSET_ID)
                         image_url = (
                             image_manager.get_building_image_url(building_asset_id)
                             if building_asset_id
@@ -213,7 +223,7 @@ def render_building_details(
                             lang_code,
                             building_name=selected_building,
                             image_url=image_url,
-                            era_key=building_data.get(config.COL_ERA),
+                            era_key=raw_building_data.get(config.COL_ERA),
                         )
                         tooltip_renderer.render_tooltip_sections(sections, lang_code)
                     else:
