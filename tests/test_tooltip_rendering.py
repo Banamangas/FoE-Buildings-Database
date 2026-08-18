@@ -157,14 +157,19 @@ def test_random_group_renders_its_duration_and_markers_with_visible_label():
 def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
     monkeypatch,
 ):
+    header_section = TooltipSection(
+        title=None,
+        rows=[],
+        key="header",
+        header="Test <Building>",
+        image_url="https://cdn/building.png",
+    )
     row = TooltipRow(None, "Coins", "10")
     group = random_group("strategy_points", 2, 75)
-    section = TooltipSection(
+    content_section = TooltipSection(
         key="produces",
         title="Produces",
         rows=[row],
-        header="Test <Building>",
-        image_url="https://cdn/building.png",
         random_groups=[group],
         shared_duration=86400,
     )
@@ -181,8 +186,13 @@ def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
         "image",
         lambda image, **kwargs: image_calls.append((image, kwargs)),
     )
+    monkeypatch.setattr(
+        tooltip.st,
+        "columns",
+        lambda *_args, **_kwargs: [nullcontext(), nullcontext()],
+    )
 
-    tooltip.render_tooltip_sections([section], "en")
+    tooltip.render_tooltip_sections([header_section, content_section], "en")
 
     assert markdown_calls[0] == (
         load_tooltip_css(),
@@ -190,7 +200,7 @@ def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
     )
     assert sum(body == load_tooltip_css() for body, _ in markdown_calls) == 1
     assert markdown_calls[1][0] == "### Test &lt;Building&gt;"
-    assert image_calls == [("https://cdn/building.png", {"width": "content"})]
+    assert image_calls == [("https://cdn/building.png", {"use_container_width": True})]
     rendered = markdown_calls[2][0]
     assert '<div class="foe-tooltip-section foe-tooltip-section-first">' in rendered
     assert '<div class="foe-tooltip-section-title">Produces (1d)</div>' in rendered
