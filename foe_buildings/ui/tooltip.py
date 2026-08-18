@@ -475,13 +475,13 @@ def render_tooltip_sections(sections: List[TooltipSection], lang_code: str) -> N
         st.markdown(f"### {_escaped(header_section.header)}")
 
     if header_section and header_section.image_url and content_sections:
-        info_col, image_col = st.columns([4, 1], gap="small")
+        info_col, image_col = st.columns([2, 1], gap="small")
         with info_col:
             _render_section_bodies(
                 content_sections, lang_code, first_class=" foe-tooltip-section-first"
             )
         with image_col:
-            st.image(header_section.image_url, use_container_width=True)
+            st.image(header_section.image_url, width="content")
     else:
         if header_section and header_section.image_url:
             st.image(header_section.image_url, width="content")

@@ -200,7 +200,7 @@ def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
     )
     assert sum(body == load_tooltip_css() for body, _ in markdown_calls) == 1
     assert markdown_calls[1][0] == "### Test &lt;Building&gt;"
-    assert image_calls == [("https://cdn/building.png", {"use_container_width": True})]
+    assert image_calls == [("https://cdn/building.png", {"width": "content"})]
     rendered = markdown_calls[2][0]
     assert '<div class="foe-tooltip-section foe-tooltip-section-first">' in rendered
     assert '<div class="foe-tooltip-section-title">Produces (1d)</div>' in rendered
