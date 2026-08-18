@@ -29,7 +29,5 @@ def test_size_time_road_minimal():
     assert "2x2" in rows[0].value
     assert rows[1].label == translations.get_text("road", "en")
     assert rows[1].value == translations.get_text("no_road_required", "en")
-    assert rows[1].icon.key == (
-        "/shared/gui/buffbar/buffbar_icon_buff_unconnected.png"
-    )
+    assert rows[1].icon.key == ("/shared/gui/buffbar/buffbar_icon_buff_unconnected.png")
     assert rows[1].show_label is True

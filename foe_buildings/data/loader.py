@@ -155,9 +155,7 @@ def load_forgehx_asset_map() -> Dict[str, str]:
     data = _make_request("/data/forgehx", fatal=False)
     if not isinstance(data, dict):
         if data is not None:
-            logger.warning(
-                "Unexpected ForgeHX response type: %s", type(data).__name__
-            )
+            logger.warning("Unexpected ForgeHX response type: %s", type(data).__name__)
         return {}
     return {
         str(path): str(asset_hash)

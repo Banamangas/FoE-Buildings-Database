@@ -81,7 +81,10 @@ def test_provides_keeps_exact_resource_and_boost_icon_keys():
         "att_def_boost_attacker_defender_gex",
     ]
     assert [row.show_label for row in rows] == [False, False]
-    assert [row.label for row in rows] == ["Coins", "Att/Def Attacker/Defender (Guild Expedition)"]
+    assert [row.label for row in rows] == [
+        "Coins",
+        "Att/Def Attacker/Defender (Guild Expedition)",
+    ]
 
 
 def test_provides_population_and_happiness():
