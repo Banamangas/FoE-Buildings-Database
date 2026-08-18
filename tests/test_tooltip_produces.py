@@ -397,6 +397,7 @@ def test_unit_icons_use_exact_id_then_bound_military_fallback():
         urls = {
             "rogue": "rogue.png",
             "chivalry": "chivalry.png",
+            "military": "military.png",
         }
         return ResolvedIcon(key, urls.get(key), accessible_name)
 
@@ -411,10 +412,12 @@ def test_unit_icons_use_exact_id_then_bound_military_fallback():
 
     result = _render_produces(entity, "en", fake_icon_resolver)
 
-    assert [(row.icon.key, row.icon.url) for row in result.rows] == [
-        ("rogue", "rogue.png"),
-        ("chivalry", "chivalry.png"),
-        ("future_scout", None),
+    assert [
+        (row.icon.key, row.icon.url, row.icon.accessible_name) for row in result.rows
+    ] == [
+        ("rogue", "rogue.png", "rogue"),
+        ("chivalry", "chivalry.png", "future_champion"),
+        ("future_scout", "military.png", "future_scout"),
     ]
     assert resolved_keys == ["rogue", "chivalry", "future_scout", "military"]
 

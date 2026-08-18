@@ -1,6 +1,6 @@
 # In-Game Building Tooltip Tab — Design Spec
 
-> Status: Approved for implementation  
+> Status: Approved for implementation<br>
 > Scope: Add an "In-Game Tooltip" sub-tab inside Building Details that renders building information as close as possible to the Forge of Empires in-game tooltip.
 
 ## 1. Goal

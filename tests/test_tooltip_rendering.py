@@ -9,6 +9,7 @@ from foe_buildings.ui.tooltip import (
     TooltipSection,
     _random_group_html,
     _tooltip_row_html,
+    render_building_tooltip,
 )
 from foe_buildings.ui.tooltip_icons import ResolvedIcon
 
@@ -202,3 +203,70 @@ def test_renderer_injects_css_once_and_keeps_header_image_and_group_order(
         if 'class="tooltip-random-group"' in body
     )
     assert row_index < group_index
+
+
+def test_renderer_emits_escaped_accessible_french_tooltip_html(monkeypatch):
+    reward_name = 'Coffret <rare> & "spécial"'
+    entity = {
+        "name": 'Atelier <royal> & "unique"',
+        "components": {
+            "AllAge": {
+                "placement": {"size": {"x": 3, "y": 2}},
+                "streetConnectionRequirement": {"requiredLevel": 1},
+                "staticResources": {"resources": {"resources": {"money": 10}}},
+                "production": {
+                    "options": [
+                        {
+                            "time": 86400,
+                            "products": [
+                                {
+                                    "type": "genericReward",
+                                    "reward": {"id": "special_reward", "amount": 1},
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "lookup": {
+                    "rewards": {
+                        "special_reward": {
+                            "name": reward_name,
+                            "type": "genericReward",
+                            "iconAssetName": "special_reward",
+                        }
+                    }
+                },
+                "ally": {"rooms": [{"allyType": "military"}]},
+                "cityLimit": {"buildingFamily": "RoyalWorkshop"},
+            }
+        },
+    }
+    markdown_calls = []
+    monkeypatch.setattr(tooltip.st, "container", nullcontext)
+    monkeypatch.setattr(
+        tooltip.st,
+        "markdown",
+        lambda body, **kwargs: markdown_calls.append((body, kwargs)),
+    )
+
+    sections = render_building_tooltip(entity, "fr", asset_map={})
+    tooltip.render_tooltip_sections(sections, "fr")
+
+    bodies = [body for body, _ in markdown_calls]
+    assert "### Atelier &lt;royal&gt; &amp; &quot;unique&quot;" in bodies
+    assert "**Taille / Temps / Route**" in bodies
+    assert "**Fournit**" in bodies
+    assert "**Produit (1d)**" in bodies
+    assert "**Salles d&#x27;alliés**" in bodies
+    assert "**Traits**" in bodies
+    rendered_html = "".join(bodies)
+    assert reward_name not in rendered_html
+    assert "<rare>" not in rendered_html
+    assert (
+        'aria-label="Coffret &lt;rare&gt; &amp; &quot;spécial&quot;: 1"'
+        in rendered_html
+    )
+    assert 'title="Coffret &lt;rare&gt; &amp; &quot;spécial&quot;: 1"' in rendered_html
+    assert 'aria-label="Route: Route requise"' in rendered_html
+    assert 'aria-label="Salle d&#x27;allié: Militaire"' in rendered_html
+    assert 'aria-label="Trait: Bâtiment unique"' in rendered_html

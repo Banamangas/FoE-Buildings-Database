@@ -244,6 +244,68 @@ def test_full_tooltip_preserves_accessible_labels_with_exact_icons():
     assert trait_row.show_label is True
 
 
+def test_full_tooltip_uses_representative_french_labels_and_values():
+    entity = {
+        "name": "Atelier royal",
+        "components": {
+            "AllAge": {
+                "placement": {"size": {"x": 3, "y": 2}},
+                "constructionTime": {"time": 3600},
+                "streetConnectionRequirement": {"requiredLevel": 1},
+                "staticResources": {"resources": {"resources": {"money": 10}}},
+                "production": {
+                    "options": [
+                        {
+                            "time": 86400,
+                            "products": [
+                                {
+                                    "type": "resources",
+                                    "playerResources": {"resources": {"money": 5}},
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "ally": {"rooms": [{"allyType": "military"}]},
+                "cityLimit": {"buildingFamily": "RoyalWorkshop"},
+            }
+        },
+    }
+
+    sections = render_building_tooltip(entity, "fr", asset_map={})
+    sections_by_key = {section.key: section for section in sections}
+
+    assert [
+        (section.key, section.title) for section in sections if section.key != "header"
+    ] == [
+        ("size_time_road", "Taille / Temps / Route"),
+        ("provides", "Fournit"),
+        ("produces", "Produit"),
+        ("ally_rooms", "Salles d'alliés"),
+        ("traits", "Traits"),
+    ]
+    assert [
+        (row.label, row.value) for row in sections_by_key["size_time_road"].rows
+    ] == [
+        ("Taille", "2x3"),
+        ("Temps de construction", "1h"),
+        ("Route", "Route requise"),
+    ]
+    assert [(row.label, row.value) for row in sections_by_key["provides"].rows] == [
+        ("Pièces", "10")
+    ]
+    assert sections_by_key["produces"].shared_duration == 86400
+    assert [(row.label, row.value) for row in sections_by_key["produces"].rows] == [
+        ("Pièces", "5")
+    ]
+    assert [(row.label, row.value) for row in sections_by_key["ally_rooms"].rows] == [
+        ("Salle d'allié", "Militaire")
+    ]
+    assert [(row.label, row.value) for row in sections_by_key["traits"].rows] == [
+        ("Trait", "Bâtiment unique")
+    ]
+
+
 def test_full_tooltip_loads_one_forgehx_map_for_every_icon(monkeypatch):
     asset_map = {
         "/shared/icons/size.png": "size-hash",
