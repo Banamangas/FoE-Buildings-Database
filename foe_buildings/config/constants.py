@@ -1,5 +1,6 @@
 # --- Game Data Constants ---
 ERAS_DICT = {
+    "StellarAgeDiscovery": "Stellar Age: Discovery",
     "SpaceAgeSpaceHub": "Space Age: Space Hub",
     "SpaceAgeTitan": "Space Age: Titan",
     "SpaceAgeJupiterMoon": "Space Age: Jupiter Moon",
