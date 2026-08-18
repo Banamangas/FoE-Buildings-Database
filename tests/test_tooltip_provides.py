@@ -1,7 +1,7 @@
 from foe_buildings.ui.tooltip import _render_provides
 
 
-def test_provides_combined_army_boosts():
+def test_provides_splits_combined_army_boosts_when_part_values_differ():
     entity = {
         "components": {
             "AllAge": {
@@ -18,10 +18,43 @@ def test_provides_combined_army_boosts():
     }
     rows = _render_provides(entity, "en")
     labels = [r.label for r in rows]
+    assert "Red Attack" in labels
+    assert "Red Defense" in labels
+    assert "Blue Attack" in labels
+    assert "Blue Defense" in labels
+    assert "Att/Def Attacker" not in labels
+    assert "Att/Def Defender" not in labels
+    assert any(r.label == "Red Attack" and r.value == "15%" for r in rows)
+    assert any(r.label == "Red Defense" and r.value == "20%" for r in rows)
+    assert any(r.label == "Blue Attack" and r.value == "10%" for r in rows)
+    assert any(r.label == "Blue Defense" and r.value == "12%" for r in rows)
+
+
+def test_provides_combines_army_boosts_when_part_values_are_equal():
+    entity = {
+        "components": {
+            "AllAge": {
+                "boosts": {
+                    "boosts": [
+                        {"type": "att_boost_attacker", "value": 25},
+                        {"type": "def_boost_attacker", "value": 25},
+                        {"type": "att_boost_defender", "value": 30},
+                        {"type": "def_boost_defender", "value": 30},
+                    ]
+                }
+            }
+        }
+    }
+    rows = _render_provides(entity, "en")
+    labels = [r.label for r in rows]
     assert "Att/Def Attacker" in labels
     assert "Att/Def Defender" in labels
+    assert "Red Attack" not in labels
+    assert "Blue Attack" not in labels
     attacker_row = next(r for r in rows if r.label == "Att/Def Attacker")
-    assert attacker_row.value == "35%"
+    defender_row = next(r for r in rows if r.label == "Att/Def Defender")
+    assert attacker_row.value == "25%"
+    assert defender_row.value == "30%"
 
 
 def test_provides_direct_combined_army_boost():

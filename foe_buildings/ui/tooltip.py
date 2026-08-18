@@ -55,16 +55,17 @@ _ARMY_BOOST_PARTNERS = {
 _COMBO_DEFINITIONS = [
     ("att_def_boost_attacker", ["att_boost_attacker", "def_boost_attacker"]),
     ("att_def_boost_defender", ["att_boost_defender", "def_boost_defender"]),
-    (
-        "att_def_boost_attacker_defender",
-        [
-            "att_boost_attacker",
-            "def_boost_attacker",
-            "att_boost_defender",
-            "def_boost_defender",
-        ],
-    ),
 ]
+
+_ALL_ARMY_COMBO = (
+    "att_def_boost_attacker_defender",
+    [
+        "att_boost_attacker",
+        "def_boost_attacker",
+        "att_boost_defender",
+        "def_boost_defender",
+    ],
+)
 
 _FEATURES = ["all", "battleground", "guild_expedition", "guild_raids"]
 
@@ -74,7 +75,9 @@ _FEATURE_TEXT_KEYS = {
     "guild_raids": "tooltip_context_guild_raids",
 }
 
-_COMBINED_ARMY_TYPES = {definition[0] for definition in _COMBO_DEFINITIONS}
+_COMBINED_ARMY_TYPES = {
+    definition[0] for definition in _COMBO_DEFINITIONS
+} | {_ALL_ARMY_COMBO[0]}
 
 _RESOURCE_LABEL_ALIASES = {
     "money": "coins",
@@ -518,6 +521,51 @@ def _feature_order(boosts: List[Dict[str, Any]]) -> List[str]:
     return [*_FEATURES, *sorted(set(present) - set(_FEATURES))]
 
 
+def _combined_army_row(
+    combined_key: str,
+    feature: str,
+    value: int,
+    lang_code: str,
+    icon_resolver: Optional[IconResolver] = None,
+) -> TooltipRow:
+    """Build one combined army-boost row."""
+    label_key = _BOOST_LABEL_KEYS.get(combined_key, combined_key)
+    label = _with_feature_context(
+        translations.get_text(label_key, lang_code), feature, lang_code
+    )
+    return TooltipRow(
+        icon=_icon(
+            boost_icon_key(combined_key, feature),
+            label,
+            icon_resolver=icon_resolver,
+        ),
+        label=label,
+        value=f"{value}{percent_suffix(combined_key)}",
+    )
+
+
+def _single_army_row(
+    boost_type: str,
+    feature: str,
+    value: int,
+    lang_code: str,
+    icon_resolver: Optional[IconResolver] = None,
+) -> TooltipRow:
+    """Build one individual army-boost row."""
+    label = _with_feature_context(
+        _boost_label(boost_type, lang_code), feature, lang_code
+    )
+    return TooltipRow(
+        icon=_icon(
+            boost_icon_key(boost_type, feature),
+            label,
+            icon_resolver=icon_resolver,
+        ),
+        label=label,
+        value=f"{value}{percent_suffix(boost_type)}",
+    )
+
+
 def _make_combined_rows(
     boosts: List[Dict[str, Any]],
     lang_code: str,
@@ -531,40 +579,125 @@ def _make_combined_rows(
             for boost in boosts
             if (boost.get("targetedFeature") or "all") == feature
         ]
-        for combined_key, parts in _COMBO_DEFINITIONS:
-            direct_boosts = [
-                boost for boost in feature_boosts if boost.get("type") == combined_key
-            ]
-            values = [boost.get("value", 0) for boost in direct_boosts]
 
-            if not direct_boosts:
-                part_boosts = {
-                    part: [
-                        boost for boost in feature_boosts if boost.get("type") == part
-                    ]
-                    for part in parts
-                }
-                if all(part_boosts.values()):
-                    values = [
-                        sum(boost.get("value", 0) for boost in part_boosts[part])
-                        for part in parts
-                    ]
-                    values = [sum(values)]
+        # Direct combined boosts take precedence over part-based inference.
+        direct_rows: List[TooltipRow] = []
+        for combined_key, _ in [_ALL_ARMY_COMBO, *_COMBO_DEFINITIONS]:
+            for boost in feature_boosts:
+                if boost.get("type") == combined_key:
+                    direct_rows.append(
+                        _combined_army_row(
+                            combined_key,
+                            feature,
+                            boost.get("value", 0),
+                            lang_code,
+                            icon_resolver,
+                        )
+                    )
+        if direct_rows:
+            rows.extend(direct_rows)
+            continue
 
-            label_key = _BOOST_LABEL_KEYS.get(combined_key, combined_key)
-            label = _with_feature_context(
-                translations.get_text(label_key, lang_code), feature, lang_code
+        def _part_sum(part_type: str) -> int:
+            return sum(
+                b.get("value", 0) for b in feature_boosts if b.get("type") == part_type
             )
-            for value in values:
+
+        def _has_part(part_type: str) -> bool:
+            return any(b.get("type") == part_type for b in feature_boosts)
+
+        sums = {
+            "att_a": _part_sum("att_boost_attacker"),
+            "def_a": _part_sum("def_boost_attacker"),
+            "att_d": _part_sum("att_boost_defender"),
+            "def_d": _part_sum("def_boost_defender"),
+        }
+        has = {
+            "att_a": _has_part("att_boost_attacker"),
+            "def_a": _has_part("def_boost_attacker"),
+            "att_d": _has_part("att_boost_defender"),
+            "def_d": _has_part("def_boost_defender"),
+        }
+        attacker_pair_complete = has["att_a"] and has["def_a"]
+        defender_pair_complete = has["att_d"] and has["def_d"]
+        all_four_complete = attacker_pair_complete and defender_pair_complete
+
+        if (
+            all_four_complete
+            and sums["att_a"] == sums["def_a"] == sums["att_d"] == sums["def_d"]
+        ):
+            rows.append(
+                _combined_army_row(
+                    _ALL_ARMY_COMBO[0],
+                    feature,
+                    sums["att_a"],
+                    lang_code,
+                    icon_resolver,
+                )
+            )
+            continue
+
+        if attacker_pair_complete and sums["att_a"] == sums["def_a"]:
+            rows.append(
+                _combined_army_row(
+                    "att_def_boost_attacker",
+                    feature,
+                    sums["att_a"],
+                    lang_code,
+                    icon_resolver,
+                )
+            )
+        else:
+            if has["att_a"]:
                 rows.append(
-                    TooltipRow(
-                        icon=_icon(
-                            boost_icon_key(combined_key, feature),
-                            label,
-                            icon_resolver=icon_resolver,
-                        ),
-                        label=label,
-                        value=f"{value}{percent_suffix(combined_key)}",
+                    _single_army_row(
+                        "att_boost_attacker",
+                        feature,
+                        sums["att_a"],
+                        lang_code,
+                        icon_resolver,
+                    )
+                )
+            if has["def_a"]:
+                rows.append(
+                    _single_army_row(
+                        "def_boost_attacker",
+                        feature,
+                        sums["def_a"],
+                        lang_code,
+                        icon_resolver,
+                    )
+                )
+
+        if defender_pair_complete and sums["att_d"] == sums["def_d"]:
+            rows.append(
+                _combined_army_row(
+                    "att_def_boost_defender",
+                    feature,
+                    sums["att_d"],
+                    lang_code,
+                    icon_resolver,
+                )
+            )
+        else:
+            if has["att_d"]:
+                rows.append(
+                    _single_army_row(
+                        "att_boost_defender",
+                        feature,
+                        sums["att_d"],
+                        lang_code,
+                        icon_resolver,
+                    )
+                )
+            if has["def_d"]:
+                rows.append(
+                    _single_army_row(
+                        "def_boost_defender",
+                        feature,
+                        sums["def_d"],
+                        lang_code,
+                        icon_resolver,
                     )
                 )
     return rows
