@@ -6,9 +6,6 @@ from typing import Dict, List, Optional, Tuple
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
 
 
-_ALL_ERAS_SENTINEL = ""
-
-
 def _parse_numeric_value(value: str) -> Optional[Tuple[float, str]]:
     """Return (number, suffix) for simple numeric or percent values, else None."""
     value = value.strip()
@@ -30,10 +27,10 @@ def _format_numeric_range(min_val: float, max_val: float, suffix: str) -> str:
     return f"{min_str} - {max_str}{suffix}"
 
 
-def _aggregate_tooltip_rows(rows: List[TooltipRow], lang_code: str) -> TooltipRow:
+def _aggregate_tooltip_rows(rows: List[TooltipRow]) -> TooltipRow:
     """Aggregate rows with the same label/icon into a range or unique list."""
     if not rows:
-        return rows[0] if rows else TooltipRow(icon=None, label="", value="")
+        return TooltipRow(icon=None, label="", value="")
 
     first = rows[0]
     if len(rows) == 1:
@@ -115,18 +112,25 @@ def _aggregate_tooltip_sections(
                 bucket["random_groups"] = section.random_groups
 
     aggregated: List[TooltipSection] = []
+    first_era_sections = next(iter(sections_per_era.values()))
     for key in section_order:
         bucket = rows_by_section[key]
         aggregated_rows = [
-            _aggregate_tooltip_rows(rows, lang_code)
+            _aggregate_tooltip_rows(rows)
             for rows in bucket["rows"].values()
         ]
         # Preserve original row order from the first era that introduced each identity.
-        first_era_sections = next(iter(sections_per_era.values()))
         first_section = next((s for s in first_era_sections if s.key == key), None)
         if first_section is not None:
             identity_order = [_row_identity(r) for r in first_section.rows]
-            aggregated_rows.sort(key=lambda r: identity_order.index(_row_identity(r)))
+            identity_index = {
+                identity: idx for idx, identity in enumerate(identity_order)
+            }
+            aggregated_rows.sort(
+                key=lambda r: identity_index.get(
+                    _row_identity(r), len(identity_order)
+                )
+            )
 
         aggregated.append(
             TooltipSection(

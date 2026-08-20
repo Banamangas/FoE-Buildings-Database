@@ -1,5 +1,3 @@
-import pytest
-
 from foe_buildings.tabs import event_tooltips
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
 
@@ -35,6 +33,24 @@ def test_aggregate_tooltip_sections_combines_numeric_rows():
     aggregated = event_tooltips._aggregate_tooltip_sections(sections, "en")
     assert len(aggregated) == 1
     assert aggregated[0].rows[0].value == "100 - 300"
+
+
+def test_aggregate_tooltip_sections_handles_identity_only_in_later_era():
+    sections = {
+        "era1": [TooltipSection(title="Provides", rows=[
+            TooltipRow(icon=None, label="Coins", value="100"),
+        ], key="provides")],
+        "era2": [TooltipSection(title="Provides", rows=[
+            TooltipRow(icon=None, label="Coins", value="300"),
+            TooltipRow(icon=None, label="Supplies", value="50"),
+        ], key="provides")],
+    }
+    aggregated = event_tooltips._aggregate_tooltip_sections(sections, "en")
+    assert len(aggregated) == 1
+    labels = [row.label for row in aggregated[0].rows]
+    assert labels == ["Coins", "Supplies"]
+    assert aggregated[0].rows[0].value == "100 - 300"
+    assert aggregated[0].rows[1].value == "50"
 
 
 def test_split_size_time_road_section_extracts_road_section():
