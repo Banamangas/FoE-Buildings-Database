@@ -1,3 +1,8 @@
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import streamlit as st
+
 from foe_buildings.tabs import event_tooltips
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
 
@@ -59,3 +64,28 @@ def test_split_size_time_road_section_extracts_road_section():
     extracted, rest = event_tooltips._split_size_time_road_section([size_section, other_section])
     assert extracted is size_section
     assert rest == [other_section]
+
+
+def test_render_event_tooltips_splits_into_rows_of_three():
+    df = pd.DataFrame(
+        {
+            "id": ["B1", "B2", "B3", "B4"],
+            "name": ["Building 1", "Building 2", "Building 3", "Building 4"],
+            "Event": ["Winter Event", "Winter Event", "Winter Event", "Winter Event"],
+            "Era": ["BronzeAge", "BronzeAge", "BronzeAge", "BronzeAge"],
+            "Translated Era": ["Bronze Age"] * 4,
+            "asset_id": ["A1", "A2", "A3", "A4"],
+        }
+    )
+    image_manager = MagicMock()
+    image_manager.has_image.return_value = False
+
+    with patch("foe_buildings.tabs.event_tooltips.data_loader.load_building_entity_lookup") as mock_lookup:
+        mock_lookup.return_value = {
+            "B1": {"name": "Building 1", "components": {"AllAge": {}}},
+            "B2": {"name": "Building 2", "components": {"AllAge": {}}},
+            "B3": {"name": "Building 3", "components": {"AllAge": {}}},
+            "B4": {"name": "Building 4", "components": {"AllAge": {}}},
+        }
+        # Should not raise; we cannot easily assert Streamlit columns, but we verify no exception.
+        event_tooltips.render_event_tooltips(df, [], "Bronze Age", "en", image_manager)

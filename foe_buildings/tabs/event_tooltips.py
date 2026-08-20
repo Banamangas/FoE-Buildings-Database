@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+import html
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+import pandas as pd
+import streamlit as st
+
+from foe_buildings import config
+from foe_buildings import i18n as translations
+from foe_buildings.config import SessionKeys
+from foe_buildings.data import loader as data_loader
+from foe_buildings.ui import tooltip as tooltip_renderer
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
+
+_ALL_ERAS_SENTINEL = "__all_eras__"
 
 
 def _parse_numeric_value(value: str) -> Optional[Tuple[float, str]]:
@@ -157,3 +168,222 @@ def _split_size_time_road_section(
         else:
             other_sections.append(section)
     return size_section, other_sections
+
+
+def _get_sorted_event_eras(df: pd.DataFrame, event: str) -> List[str]:
+    """Return the distinct eras of buildings for an event, in game order."""
+    event_eras = df.loc[df[config.COL_EVENT] == event, config.COL_ERA].unique()
+    era_order = {era: idx for idx, era in enumerate(config.ERAS_DICT.keys())}
+    return sorted(event_eras, key=lambda era: era_order.get(era, len(era_order)))
+
+
+def _render_tooltip_rows_html(rows: List[TooltipRow], lang_code: str) -> str:
+    """Render tooltip rows as compact HTML."""
+    from foe_buildings.ui.tooltip import _tooltip_row_html
+
+    return "".join(_tooltip_row_html(row, lang_code) for row in rows)
+
+
+def _render_tooltip_section_html(section: TooltipSection, lang_code: str) -> str:
+    """Render one tooltip section as compact HTML."""
+    from foe_buildings.ui.tooltip import _random_group_html
+
+    parts: List[str] = []
+    if section.title:
+        title = section.title
+        if section.shared_duration:
+            title = f"{title} ({tooltip_renderer.format_time(section.shared_duration)})"
+        parts.append(
+            f'<div class="foe-tooltip-section-title">{html.escape(title)}</div>'
+        )
+    parts.append(_render_tooltip_rows_html(section.rows, lang_code))
+    for group in section.random_groups:
+        parts.append(_random_group_html(group, lang_code))
+    return f'<div class="foe-tooltip-section foe-tooltip-section-first">{"".join(parts)}</div>'
+
+
+def _render_building_card(
+    building_data: pd.Series,
+    sections: List[TooltipSection],
+    lang_code: str,
+    image_manager: Any,
+) -> None:
+    """Render one building card with left and right panels."""
+    size_section, other_sections = _split_size_time_road_section(sections)
+
+    with st.container(border=True):
+        left_col, right_col = st.columns([1, 2], gap="small")
+
+        with left_col:
+            building_asset_id = building_data.get(config.COL_ASSET_ID)
+            if building_asset_id and image_manager.has_image(building_asset_id):
+                image_url = image_manager.get_building_image_url(building_asset_id)
+                st.image(image_url, width=80)
+
+            if size_section is not None:
+                st.markdown(
+                    _render_tooltip_rows_html(size_section.rows, lang_code),
+                    unsafe_allow_html=True,
+                )
+
+        with right_col:
+            for section in other_sections:
+                if not (section.title or section.rows or section.random_groups):
+                    continue
+                st.markdown(
+                    _render_tooltip_section_html(section, lang_code),
+                    unsafe_allow_html=True,
+                )
+
+
+@st.cache_data
+def _cached_building_tooltip_sections(
+    building_id: str,
+    era_key: str,
+    lang_code: str,
+    building_name: str,
+    asset_id: Optional[str],
+) -> List[TooltipSection]:
+    """Cache tooltip sections per building, era, and language."""
+    lookup = data_loader.load_building_entity_lookup()
+    entity = lookup.get(building_id)
+    if not entity or not entity.get("components"):
+        return []
+    return tooltip_renderer.render_building_tooltip(
+        entity,
+        lang_code,
+        building_name=building_name,
+        image_url=None,
+        era_key=era_key if era_key else None,
+    )
+
+
+def _resolve_building_sections(
+    building_data: pd.Series,
+    era_key: str,
+    lang_code: str,
+) -> List[TooltipSection]:
+    """Return tooltip sections for a building, using cache when possible."""
+    building_id = building_data.get("id")
+    building_name = building_data.get(config.COL_NAME)
+    asset_id = building_data.get(config.COL_ASSET_ID)
+    return _cached_building_tooltip_sections(
+        building_id=str(building_id),
+        era_key=era_key,
+        lang_code=lang_code,
+        building_name=str(building_name),
+        asset_id=str(asset_id) if pd.notna(asset_id) else None,
+    )
+
+
+def render_event_tooltips(
+    df_original: pd.DataFrame,
+    selected_events: List[str],
+    selected_translated_era: str,
+    lang_code: str,
+    image_manager: Any,
+) -> None:
+    """Render the Event Tooltips tab."""
+    st.header(translations.get_text("event_tooltips", lang_code))
+
+    available_events = sorted(df_original[config.COL_EVENT].unique())
+    if selected_events:
+        available_events = [e for e in available_events if e in selected_events]
+
+    if not available_events:
+        st.info(translations.get_text("no_event_selected", lang_code))
+        return
+
+    default_event = ""
+    if SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT in st.session_state:
+        default_event = st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT]
+    if default_event not in available_events and len(available_events) == 1:
+        default_event = available_events[0]
+    if default_event not in available_events:
+        default_event = available_events[0]
+
+    col_event, col_era = st.columns([2, 1])
+    with col_event:
+        selected_event = st.selectbox(
+            translations.get_text("select_event", lang_code),
+            options=available_events,
+            index=available_events.index(default_event),
+            key="event_tooltip_event_selector",
+        )
+    st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT] = selected_event
+
+    event_buildings = df_original[df_original[config.COL_EVENT] == selected_event].copy()
+    event_buildings = event_buildings.sort_values(by="id", ascending=True)
+
+    event_eras = _get_sorted_event_eras(df_original, selected_event)
+    era_options = [translations.get_text("all_eras", lang_code)] + [
+        translations.translate_era_key(era, lang_code) for era in event_eras
+    ]
+
+    default_era = translations.get_text("all_eras", lang_code)
+    stored_era = st.session_state.get(SessionKeys.SELECTED_EVENT_TOOLTIP_ERA, "")
+    if stored_era in era_options:
+        default_era = stored_era
+
+    with col_era:
+        selected_era_label = st.selectbox(
+            translations.translate_column("Era", lang_code),
+            options=era_options,
+            index=era_options.index(default_era),
+            key="event_tooltip_era_selector",
+        )
+    st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_ERA] = selected_era_label
+
+    if event_buildings.empty:
+        st.info(translations.get_text("no_buildings_for_event", lang_code))
+        return
+
+    if selected_era_label == translations.get_text("all_eras", lang_code):
+        selected_era_key = _ALL_ERAS_SENTINEL
+    else:
+        # Map translated label back to raw era key.
+        selected_era_key = next(
+            era for era in event_eras
+            if translations.translate_era_key(era, lang_code) == selected_era_label
+        )
+
+    # Render in rows of 3.
+    building_rows = [
+        event_buildings.iloc[i : i + 3] for i in range(0, len(event_buildings), 3)
+    ]
+
+    for row_df in building_rows:
+        cols = st.columns(3, gap="small")
+        for col, (_, building_data) in zip(cols, row_df.iterrows()):
+            with col:
+                building_id = building_data.get("id")
+                entity = data_loader.load_building_entity_lookup().get(building_id)
+                if not entity or not entity.get("components"):
+                    st.info(
+                        translations.get_text("no_tooltip_data", lang_code),
+                        icon="⚠️",
+                    )
+                    continue
+
+                if selected_era_key == _ALL_ERAS_SENTINEL:
+                    sections_per_era: Dict[str, List[TooltipSection]] = {}
+                    for era_key in event_eras:
+                        sections = _resolve_building_sections(
+                            building_data, era_key, lang_code
+                        )
+                        if sections:
+                            sections_per_era[era_key] = sections
+                    sections = _aggregate_tooltip_sections(sections_per_era, lang_code)
+                else:
+                    sections = _resolve_building_sections(
+                        building_data, selected_era_key, lang_code
+                    )
+
+                if not sections:
+                    st.info(
+                        translations.get_text("no_tooltip_data", lang_code),
+                        icon="⚠️",
+                    )
+                    continue
+
+                _render_building_card(building_data, sections, lang_code, image_manager)
