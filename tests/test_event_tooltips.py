@@ -101,6 +101,67 @@ def test_split_size_time_road_section_extracts_road_section():
     assert rest == [other_section]
 
 
+def test_get_sorted_building_eras_returns_distinct_eras_in_order():
+    df = pd.DataFrame(
+        {
+            "id": ["B1", "B1", "B1"],
+            "Era": ["IronAge", "BronzeAge", "IronAge"],
+        }
+    )
+    eras = event_tooltips._get_sorted_building_eras(df, "B1")
+    # ERAS_DICT orders newest eras first: IronAge (index 21) before BronzeAge (22).
+    assert eras == ["IronAge", "BronzeAge"]
+
+
+def test_deduplicate_buildings_keeps_one_row_per_id():
+    df = pd.DataFrame(
+        {
+            "id": ["B1", "B1", "B2"],
+            "name": ["Building 1", "Building 1", "Building 2"],
+            "Event": ["Winter Event"] * 3,
+            "Era": ["IronAge", "BronzeAge", "BronzeAge"],
+            "Translated Era": ["Iron Age", "Bronze Age", "Bronze Age"],
+            "asset_id": ["A1", "A1", "A2"],
+        }
+    )
+    result = event_tooltips._deduplicate_buildings(df)
+    assert len(result) == 2
+    assert set(result["id"]) == {"B1", "B2"}
+    # Keeps the most advanced era row (lowest ERAS_DICT index).
+    b1_row = result[result["id"] == "B1"].iloc[0]
+    assert b1_row["Era"] == "IronAge"
+
+
+def test_render_event_tooltips_deduplicates_building_eras():
+    df = pd.DataFrame(
+        {
+            "id": ["B1", "B1", "B2", "B2"],
+            "name": ["Building 1", "Building 1", "Building 2", "Building 2"],
+            "Event": ["Winter Event"] * 4,
+            "Era": ["BronzeAge", "IronAge", "BronzeAge", "IronAge"],
+            "Translated Era": ["Bronze Age", "Iron Age", "Bronze Age", "Iron Age"],
+            "asset_id": ["A1", "A1", "A2", "A2"],
+        }
+    )
+    image_manager = MagicMock()
+    image_manager.has_image.return_value = False
+
+    with patch(
+        "foe_buildings.tabs.event_tooltips.data_loader.load_building_entity_lookup"
+    ) as mock_lookup:
+        mock_lookup.return_value = {
+            "B1": {"name": "Building 1", "components": {"AllAge": {}}},
+            "B2": {"name": "Building 2", "components": {"AllAge": {}}},
+        }
+        with patch.object(
+            event_tooltips, "_resolve_building_sections"
+        ) as mock_resolve:
+            mock_resolve.return_value = []
+            event_tooltips.render_event_tooltips(df, [], "Bronze Age", "en", image_manager)
+            # Two buildings, two eras each in All eras mode -> 4 calls, not 8.
+            assert mock_resolve.call_count == 4
+
+
 def test_render_event_tooltips_splits_into_rows_of_three():
     df = pd.DataFrame(
         {
@@ -115,7 +176,9 @@ def test_render_event_tooltips_splits_into_rows_of_three():
     image_manager = MagicMock()
     image_manager.has_image.return_value = False
 
-    with patch("foe_buildings.tabs.event_tooltips.data_loader.load_building_entity_lookup") as mock_lookup:
+    with patch(
+        "foe_buildings.tabs.event_tooltips.data_loader.load_building_entity_lookup"
+    ) as mock_lookup:
         mock_lookup.return_value = {
             "B1": {"name": "Building 1", "components": {"AllAge": {}}},
             "B2": {"name": "Building 2", "components": {"AllAge": {}}},

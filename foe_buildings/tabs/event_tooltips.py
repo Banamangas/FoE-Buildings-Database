@@ -179,6 +179,26 @@ def _get_sorted_event_eras(df: pd.DataFrame, event: str) -> List[str]:
     return sorted(event_eras, key=lambda era: era_order.get(era, len(era_order)))
 
 
+def _get_sorted_building_eras(df: pd.DataFrame, building_id: str) -> List[str]:
+    """Return the distinct eras for a single building, in game order."""
+    building_eras = df.loc[df["id"] == building_id, config.COL_ERA].unique()
+    era_order = {era: idx for idx, era in enumerate(config.ERAS_DICT.keys())}
+    return sorted(building_eras, key=lambda era: era_order.get(era, len(era_order)))
+
+
+def _deduplicate_buildings(df: pd.DataFrame) -> pd.DataFrame:
+    """Return one row per building id, keeping the lowest-era row."""
+    era_order = {era: idx for idx, era in enumerate(config.ERAS_DICT.keys())}
+    df = df.copy()
+    df["_era_order"] = df[config.COL_ERA].map(
+        lambda era: era_order.get(era, len(era_order))
+    )
+    df = df.sort_values(by=["id", "_era_order"])
+    df = df.drop_duplicates(subset=["id"], keep="first")
+    df = df.drop(columns=["_era_order"])
+    return df
+
+
 def _render_tooltip_rows_html(rows: List[TooltipRow], lang_code: str) -> str:
     """Render tooltip rows as compact HTML."""
     from foe_buildings.ui.tooltip import _tooltip_row_html
@@ -312,6 +332,7 @@ def render_event_tooltips(
     st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT] = selected_event
 
     event_buildings = df_original[df_original[config.COL_EVENT] == selected_event].copy()
+    event_buildings = _deduplicate_buildings(event_buildings)
     event_buildings = event_buildings.sort_values(by="id", ascending=True)
 
     event_eras = _get_sorted_event_eras(df_original, selected_event)
@@ -320,8 +341,6 @@ def render_event_tooltips(
     ]
 
     default_era = translations.get_text("all_eras", lang_code)
-    if selected_translated_era in era_options:
-        default_era = selected_translated_era
     stored_era = st.session_state.get(SessionKeys.SELECTED_EVENT_TOOLTIP_ERA, "")
     if stored_era in era_options:
         default_era = stored_era
@@ -359,7 +378,8 @@ def render_event_tooltips(
             with col:
                 if selected_era_key == _ALL_ERAS_SENTINEL:
                     sections_per_era: Dict[str, List[TooltipSection]] = {}
-                    for era_key in event_eras:
+                    building_id = building_data.get("id")
+                    for era_key in _get_sorted_building_eras(df_original, building_id):
                         sections = _resolve_building_sections(
                             building_data, era_key, lang_code
                         )
