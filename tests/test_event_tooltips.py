@@ -34,7 +34,7 @@ def test_aggregate_tooltip_sections_combines_numeric_rows():
         "era1": [TooltipSection(title="Provides", rows=[row], key="provides")],
         "era2": [TooltipSection(title="Provides", rows=[TooltipRow(icon=None, label="Coins", value="300")], key="provides")],
     }
-    aggregated = event_tooltips._aggregate_tooltip_sections(sections, "en")
+    aggregated = event_tooltips._aggregate_tooltip_sections(sections)
     assert len(aggregated) == 1
     assert aggregated[0].rows[0].value == "100 - 300"
 
@@ -49,12 +49,48 @@ def test_aggregate_tooltip_sections_handles_identity_only_in_later_era():
             TooltipRow(icon=None, label="Supplies", value="50"),
         ], key="provides")],
     }
-    aggregated = event_tooltips._aggregate_tooltip_sections(sections, "en")
+    aggregated = event_tooltips._aggregate_tooltip_sections(sections)
     assert len(aggregated) == 1
     labels = [row.label for row in aggregated[0].rows]
     assert labels == ["Coins", "Supplies"]
     assert aggregated[0].rows[0].value == "100 - 300"
     assert aggregated[0].rows[1].value == "50"
+
+
+def test_aggregate_tooltip_rows_collapses_numeric_range():
+    rows = [
+        TooltipRow(icon=None, label="Coins", value="100"),
+        TooltipRow(icon=None, label="Coins", value="300"),
+    ]
+    aggregated = event_tooltips._aggregate_tooltip_rows(rows)
+    assert aggregated.value == "100 - 300"
+
+
+def test_aggregate_tooltip_rows_collapses_equal_numeric_values():
+    rows = [
+        TooltipRow(icon=None, label="Coins", value="50"),
+        TooltipRow(icon=None, label="Coins", value="50"),
+    ]
+    aggregated = event_tooltips._aggregate_tooltip_rows(rows)
+    assert aggregated.value == "50"
+
+
+def test_aggregate_tooltip_rows_joins_mixed_non_numeric_values():
+    rows = [
+        TooltipRow(icon=None, label="Reward", value="A"),
+        TooltipRow(icon=None, label="Reward", value="B"),
+    ]
+    aggregated = event_tooltips._aggregate_tooltip_rows(rows)
+    assert aggregated.value == "A / B"
+
+
+def test_aggregate_tooltip_rows_collapses_identical_non_numeric_values():
+    rows = [
+        TooltipRow(icon=None, label="Reward", value="X"),
+        TooltipRow(icon=None, label="Reward", value="X"),
+    ]
+    aggregated = event_tooltips._aggregate_tooltip_rows(rows)
+    assert aggregated.value == "X"
 
 
 def test_split_size_time_road_section_extracts_road_section():

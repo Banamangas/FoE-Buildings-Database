@@ -135,7 +135,6 @@
     "efficiency_scatter_plots": "Graphiques de Nuage de Points d'Efficacité",
     "efficiency_weights": "Efficacité pondérée",
     "enable_heatmap": "Activer la Heatmap",
-    "era_range_label": "Plage d'ères",
     "event_tooltips": "Infobulles d'événement",
     "exclude_mode": "Mode Exclusion (NON)",
     "exclude_mode_help": "Quand activé, ce filtre EXCLURA les bâtiments qui correspondent aux critères au lieu de les inclure",

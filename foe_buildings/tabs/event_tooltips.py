@@ -91,7 +91,6 @@ def _row_identity(row: TooltipRow) -> Tuple:
 
 def _aggregate_tooltip_sections(
     sections_per_era: Dict[str, List[TooltipSection]],
-    lang_code: str,
 ) -> List[TooltipSection]:
     """Merge per-era sections, aggregating matching rows into ranges."""
     if not sections_per_era:
@@ -131,7 +130,10 @@ def _aggregate_tooltip_sections(
             for rows in bucket["rows"].values()
         ]
         # Preserve original row order from the first era that introduced each identity.
-        first_section = next((s for s in first_era_sections if s.key == key), None)
+        first_section = next(
+            (s for s in first_era_sections if (s.key if s.key is not None else "") == key),
+            None,
+        )
         if first_section is not None:
             identity_order = [_row_identity(r) for r in first_section.rows]
             identity_index = {
@@ -216,7 +218,7 @@ def _render_building_card(
 
         with left_col:
             building_asset_id = building_data.get(config.COL_ASSET_ID)
-            if building_asset_id and image_manager.has_image(building_asset_id):
+            if building_asset_id and image_manager is not None and image_manager.has_image(building_asset_id):
                 image_url = image_manager.get_building_image_url(building_asset_id)
                 st.image(image_url, width=80)
 
@@ -242,7 +244,6 @@ def _cached_building_tooltip_sections(
     era_key: str,
     lang_code: str,
     building_name: str,
-    asset_id: Optional[str],
 ) -> List[TooltipSection]:
     """Cache tooltip sections per building, era, and language."""
     lookup = data_loader.load_building_entity_lookup()
@@ -266,13 +267,11 @@ def _resolve_building_sections(
     """Return tooltip sections for a building, using cache when possible."""
     building_id = building_data.get("id")
     building_name = building_data.get(config.COL_NAME)
-    asset_id = building_data.get(config.COL_ASSET_ID)
     return _cached_building_tooltip_sections(
         building_id=str(building_id),
         era_key=era_key,
         lang_code=lang_code,
         building_name=str(building_name),
-        asset_id=str(asset_id) if pd.notna(asset_id) else None,
     )
 
 
@@ -321,6 +320,8 @@ def render_event_tooltips(
     ]
 
     default_era = translations.get_text("all_eras", lang_code)
+    if selected_translated_era in era_options:
+        default_era = selected_translated_era
     stored_era = st.session_state.get(SessionKeys.SELECTED_EVENT_TOOLTIP_ERA, "")
     if stored_era in era_options:
         default_era = stored_era
@@ -356,15 +357,6 @@ def render_event_tooltips(
         cols = st.columns(3, gap="small")
         for col, (_, building_data) in zip(cols, row_df.iterrows()):
             with col:
-                building_id = building_data.get("id")
-                entity = data_loader.load_building_entity_lookup().get(building_id)
-                if not entity or not entity.get("components"):
-                    st.info(
-                        translations.get_text("no_tooltip_data", lang_code),
-                        icon="⚠️",
-                    )
-                    continue
-
                 if selected_era_key == _ALL_ERAS_SENTINEL:
                     sections_per_era: Dict[str, List[TooltipSection]] = {}
                     for era_key in event_eras:
@@ -373,7 +365,7 @@ def render_event_tooltips(
                         )
                         if sections:
                             sections_per_era[era_key] = sections
-                    sections = _aggregate_tooltip_sections(sections_per_era, lang_code)
+                    sections = _aggregate_tooltip_sections(sections_per_era)
                 else:
                     sections = _resolve_building_sections(
                         building_data, selected_era_key, lang_code

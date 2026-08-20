@@ -135,7 +135,6 @@
     "efficiency_scatter_plots": "Efficiency Scatter Plots",
     "efficiency_weights": "Efficiency Weights",
     "enable_heatmap": "Enable Heatmap",
-    "era_range_label": "Era range",
     "event_tooltips": "Event Tooltips",
     "exclude_mode": "Exclude Mode (NOT)",
     "exclude_mode_help": "When enabled, this filter will EXCLUDE buildings that match the criteria instead of including them",
