@@ -21,6 +21,7 @@ from foe_buildings.ui.styles import load_tab_css
 from foe_buildings.tabs.building_analysis import render_building_analysis
 from foe_buildings.tabs.building_details import render_building_details
 from foe_buildings.tabs.city_analysis import render_city_analysis_tab
+from foe_buildings.tabs.event_tooltips import render_event_tooltips
 from foe_buildings.tabs.visualizations import render_data_visualizations
 
 logger = config.logger
@@ -412,6 +413,7 @@ def main() -> None:
         translations.get_text("building_details", lang_code),
         translations.get_text("city_analysis", lang_code),
         translations.get_text("visualizations", lang_code),
+        translations.get_text("event_tooltips", lang_code),
     ]
 
     selected_tab = st.radio(
@@ -530,5 +532,15 @@ def main() -> None:
             )
             df_viz_display = calculations.apply_per_square(df_viz_display, divisor_col)
         render_data_visualizations(df_viz_display, lang_code, show_per_square)
+
+    # --- Event Tooltips Tab ---
+    if st.session_state[SessionKeys.ACTIVE_MAIN_TAB] == 4:
+        render_event_tooltips(
+            df_original=df_original,
+            selected_events=selected_events,
+            selected_translated_era=selected_translated_era,
+            lang_code=lang_code,
+            image_manager=cached_image_manager,
+        )
 
     render_kofi_widget(language=lang_code)
