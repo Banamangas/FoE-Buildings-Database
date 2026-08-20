@@ -15,6 +15,10 @@ from foe_buildings.ui import tooltip as tooltip_renderer
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
 
 _ALL_ERAS_SENTINEL = "__all_eras__"
+# Extreme eras used for the fast "All eras" overview. Rendering only two eras
+# per building keeps initial load responsive; specific eras load on demand.
+_MIN_ERA_KEY = "BronzeAge"
+_MAX_ERA_KEY = "StellarAgeDiscovery"
 
 
 def _parse_numeric_value(value: str) -> Optional[Tuple[float, str]]:
@@ -378,8 +382,7 @@ def render_event_tooltips(
             with col:
                 if selected_era_key == _ALL_ERAS_SENTINEL:
                     sections_per_era: Dict[str, List[TooltipSection]] = {}
-                    building_id = building_data.get("id")
-                    for era_key in _get_sorted_building_eras(df_original, building_id):
+                    for era_key in (_MAX_ERA_KEY, _MIN_ERA_KEY):
                         sections = _resolve_building_sections(
                             building_data, era_key, lang_code
                         )

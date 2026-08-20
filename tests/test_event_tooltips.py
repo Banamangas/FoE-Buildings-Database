@@ -158,8 +158,10 @@ def test_render_event_tooltips_deduplicates_building_eras():
         ) as mock_resolve:
             mock_resolve.return_value = []
             event_tooltips.render_event_tooltips(df, [], "Bronze Age", "en", image_manager)
-            # Two buildings, two eras each in All eras mode -> 4 calls, not 8.
+            # Two buildings, two extreme eras each in All eras mode -> 4 calls, not 8.
             assert mock_resolve.call_count == 4
+            called_eras = {call.args[1] for call in mock_resolve.call_args_list}
+            assert called_eras == {"BronzeAge", "StellarAgeDiscovery"}
 
 
 def test_render_event_tooltips_splits_into_rows_of_three():
