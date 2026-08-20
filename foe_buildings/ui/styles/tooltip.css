@@ -96,4 +96,41 @@
   line-height: 1.3;
 }
 
+/* Event Tooltips tab: compact building cards */
+.foe-event-tooltip-card {
+  padding: 0.75rem;
+}
+
+.foe-event-tooltip-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.foe-event-tooltip-card .foe-tooltip-section {
+  margin-top: 0.5rem;
+  padding-top: 0;
+}
+
+.foe-event-tooltip-card .foe-tooltip-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.foe-event-tooltip-card .foe-tooltip-row {
+  min-height: 1.5rem;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.foe-event-tooltip-card .foe-tooltip-icon,
+.foe-event-tooltip-card .foe-tooltip-marker,
+.foe-event-tooltip-card .tooltip-icon-missing {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
 

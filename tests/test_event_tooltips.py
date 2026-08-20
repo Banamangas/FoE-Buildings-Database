@@ -164,6 +164,55 @@ def test_render_event_tooltips_deduplicates_building_eras():
             assert called_eras == {"BronzeAge", "StellarAgeDiscovery"}
 
 
+def test_reorder_event_tooltip_sections_puts_ally_rooms_first():
+    sections = [
+        TooltipSection(title="Provides", rows=[], key="provides"),
+        TooltipSection(title="Ally Rooms", rows=[], key="ally_rooms"),
+        TooltipSection(title="Produces", rows=[], key="produces"),
+        TooltipSection(title="Traits", rows=[], key="traits"),
+    ]
+    ordered = event_tooltips._reorder_event_tooltip_sections(sections)
+    assert [s.key for s in ordered] == [
+        "ally_rooms",
+        "provides",
+        "produces",
+        "traits",
+    ]
+
+
+def test_is_fragment_row_detects_fragment_marker():
+    from foe_buildings.ui.tooltip_icons import ResolvedIcon
+
+    fragment_row = TooltipRow(
+        icon=None,
+        label="Test Fragments",
+        value="5",
+        markers=[ResolvedIcon("icon_tooltip_fragment", "frag.png", "Fragment")],
+    )
+    normal_row = TooltipRow(icon=None, label="Coins", value="100")
+    assert event_tooltips._is_fragment_row(fragment_row) is True
+    assert event_tooltips._is_fragment_row(normal_row) is False
+
+
+def test_reformat_fragment_row_shows_name():
+    from foe_buildings.ui.tooltip_icons import ResolvedIcon
+
+    fragment_icon = ResolvedIcon("icon_tooltip_fragment", "frag.png", "Fragment")
+    row = TooltipRow(
+        icon=ResolvedIcon("kit", "kit.png", "Kit"),
+        label="Test Selection Kit Fragments",
+        value="10",
+        markers=[fragment_icon],
+    )
+    reformatted = event_tooltips._reformat_fragment_row(row)
+    assert "10" in reformatted.value
+    assert "frag.png" in reformatted.value
+    assert "of Test Selection Kit" in reformatted.value
+    assert not any(
+        marker.key == "icon_tooltip_fragment" for marker in reformatted.markers
+    )
+
+
 def test_render_event_tooltips_splits_into_rows_of_three():
     df = pd.DataFrame(
         {

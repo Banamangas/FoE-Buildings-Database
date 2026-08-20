@@ -210,6 +210,76 @@ def _render_tooltip_rows_html(rows: List[TooltipRow], lang_code: str) -> str:
     return "".join(_tooltip_row_html(row, lang_code) for row in rows)
 
 
+_SECTION_ORDER = {
+    "ally_rooms": 0,
+    "provides": 1,
+    "produces": 2,
+    "chain_set": 3,
+    "costs": 4,
+    "traits": 5,
+}
+
+
+def _reorder_event_tooltip_sections(
+    sections: List[TooltipSection],
+) -> List[TooltipSection]:
+    """Return sections in the order preferred by the event tooltip view."""
+    return sorted(
+        sections,
+        key=lambda s: _SECTION_ORDER.get(s.key if s.key is not None else "", 99),
+    )
+
+
+def _is_fragment_row(row: TooltipRow) -> bool:
+    """Return True if the row represents a fragment reward."""
+    return any(
+        marker is not None and marker.key == "icon_tooltip_fragment"
+        for marker in row.markers
+    )
+
+
+def _reformat_fragment_row(row: TooltipRow) -> TooltipRow:
+    """Rewrite a fragment row to 'value [fragment_icon] of [name] [markers]'."""
+    fragment_marker = next(
+        marker
+        for marker in row.markers
+        if marker is not None and marker.key == "icon_tooltip_fragment"
+    )
+    remaining_markers = [
+        marker
+        for marker in row.markers
+        if marker is not None and marker.key != "icon_tooltip_fragment"
+    ]
+    # Label currently ends with " Fragments"; strip that to recover the item name.
+    item_name = re.sub(r"\s+[Ff]ragments$", "", row.label).strip()
+    inline_fragment = (
+        f'<img src="{html.escape(fragment_marker.url)}" '
+        f'class="foe-tooltip-marker" alt="{html.escape(fragment_marker.accessible_name)}">'
+        if fragment_marker.url
+        else ""
+    )
+    new_value = f"{html.escape(str(row.value))} {inline_fragment} of {html.escape(item_name)}"
+    return TooltipRow(
+        icon=row.icon,
+        label=row.label,
+        value=new_value,
+        suffix=row.suffix,
+        show_label=False,
+        duration=row.duration,
+        markers=remaining_markers,
+    )
+
+
+def _render_tooltip_rows_html(rows: List[TooltipRow], lang_code: str) -> str:
+    """Render tooltip rows as compact HTML."""
+    from foe_buildings.ui.tooltip import _tooltip_row_html
+
+    processed_rows = [
+        _reformat_fragment_row(row) if _is_fragment_row(row) else row for row in rows
+    ]
+    return "".join(_tooltip_row_html(row, lang_code) for row in processed_rows)
+
+
 def _render_tooltip_section_html(section: TooltipSection, lang_code: str) -> str:
     """Render one tooltip section as compact HTML."""
     from foe_buildings.ui.tooltip import _random_group_html
@@ -236,15 +306,26 @@ def _render_building_card(
 ) -> None:
     """Render one building card with left and right panels."""
     size_section, other_sections = _split_size_time_road_section(sections)
+    other_sections = _reorder_event_tooltip_sections(other_sections)
+    building_name = building_data.get(config.COL_NAME, "")
 
     with st.container(border=True):
-        left_col, right_col = st.columns([1, 2], gap="small")
+        st.markdown('<div class="foe-event-tooltip-card">', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="foe-event-tooltip-name">{html.escape(str(building_name))}</div>',
+            unsafe_allow_html=True,
+        )
+        left_col, right_col = st.columns([1, 1], gap="small")
 
         with left_col:
             building_asset_id = building_data.get(config.COL_ASSET_ID)
-            if building_asset_id and image_manager is not None and image_manager.has_image(building_asset_id):
+            if (
+                building_asset_id
+                and image_manager is not None
+                and image_manager.has_image(building_asset_id)
+            ):
                 image_url = image_manager.get_building_image_url(building_asset_id)
-                st.image(image_url, width=80)
+                st.image(image_url, use_container_width=True)
 
             if size_section is not None:
                 st.markdown(
@@ -260,6 +341,7 @@ def _render_building_card(
                     _render_tooltip_section_html(section, lang_code),
                     unsafe_allow_html=True,
                 )
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 @st.cache_data
