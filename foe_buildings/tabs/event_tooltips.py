@@ -94,17 +94,18 @@ def _aggregate_tooltip_sections(
 
     for era, sections in sections_per_era.items():
         for section in sections:
-            if section.key not in rows_by_section:
-                rows_by_section[section.key] = {
+            section_key = section.key if section.key is not None else ""
+            if section_key not in rows_by_section:
+                rows_by_section[section_key] = {
                     "title": section.title,
                     "rows": {},
                     "random_groups": [],
                     "shared_duration": section.shared_duration,
                     "order": len(section_order),
                 }
-                section_order.append(section.key)
+                section_order.append(section_key)
 
-            bucket = rows_by_section[section.key]
+            bucket = rows_by_section[section_key]
             for row in section.rows:
                 identity = _row_identity(row)
                 bucket["rows"].setdefault(identity, []).append(row)
