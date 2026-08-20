@@ -12,6 +12,7 @@ from foe_buildings import i18n as translations
 from foe_buildings.config import SessionKeys
 from foe_buildings.data import loader as data_loader
 from foe_buildings.ui import tooltip as tooltip_renderer
+from foe_buildings.ui.styles import load_tooltip_css
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
 
 _ALL_ERAS_SENTINEL = "__all_eras__"
@@ -389,6 +390,7 @@ def render_event_tooltips(
     image_manager: Any,
 ) -> None:
     """Render the Event Tooltips tab."""
+    st.markdown(load_tooltip_css(), unsafe_allow_html=True)
     st.header(translations.get_text("event_tooltips", lang_code))
 
     available_events = sorted(df_original[config.COL_EVENT].unique())
