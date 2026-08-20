@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import streamlit as st
 
 from foe_buildings.tabs import event_tooltips
 from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
