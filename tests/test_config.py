@@ -5,6 +5,7 @@ from foe_buildings.config import (
     ADDITIVE_METRICS,
     RANKING_POINTS_PER_RESOURCE,
     SessionKeys,
+    init_session_state,
 )
 
 
@@ -31,6 +32,16 @@ def test_ranking_points_special_goods_eras_match_eras_dict():
         assert era_key in ERAS_DICT, f"Special goods era '{era_key}' not in ERAS_DICT"
 
 
+def test_session_keys_event_tooltip_event_exists():
+    """Event tooltip event key should have the expected string value."""
+    assert SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT == "selected_event_tooltip_event"
+
+
+def test_session_keys_event_tooltip_era_exists():
+    """Event tooltip era key should have the expected string value."""
+    assert SessionKeys.SELECTED_EVENT_TOOLTIP_ERA == "selected_event_tooltip_era"
+
+
 def test_session_keys_no_duplicate_values():
     """No two SessionKeys should map to the same string value."""
     values = [
@@ -39,6 +50,16 @@ def test_session_keys_no_duplicate_values():
         if not k.startswith("_") and isinstance(v, str)
     ]
     assert len(values) == len(set(values)), f"Duplicate SessionKeys values: {values}"
+
+
+def test_init_session_state_sets_event_tooltip_defaults(monkeypatch):
+    """init_session_state should initialize event tooltip keys to empty strings."""
+    import streamlit as st
+
+    monkeypatch.setattr(st, "session_state", {})
+    init_session_state()
+    assert st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT] == ""
+    assert st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_ERA] == ""
 
 
 def test_additive_metrics_subset_of_weightable():

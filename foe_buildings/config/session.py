@@ -21,6 +21,8 @@ class SessionKeys:
     SESSION_ID = "session_id"
     EFFICIENCY_CACHE = "efficiency_cache"
     SCORING_MODE = "scoring_mode"  # "classic" or "normalised"
+    SELECTED_EVENT_TOOLTIP_EVENT = "selected_event_tooltip_event"
+    SELECTED_EVENT_TOOLTIP_ERA = "selected_event_tooltip_era"
 
 
 def init_session_state() -> None:
@@ -32,6 +34,8 @@ def init_session_state() -> None:
         SessionKeys.USER_BOOSTS: {},
         SessionKeys.ACTIVE_MAIN_TAB: 0,
         SessionKeys.SCORING_MODE: "classic",
+        SessionKeys.SELECTED_EVENT_TOOLTIP_EVENT: "",
+        SessionKeys.SELECTED_EVENT_TOOLTIP_ERA: "",
     }
     for key, default in defaults.items():
         if key not in st.session_state:
