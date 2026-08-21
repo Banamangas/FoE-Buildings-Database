@@ -135,7 +135,7 @@
     "efficiency_scatter_plots": "Efficiency Scatter Plots",
     "efficiency_weights": "Efficiency Weights",
     "enable_heatmap": "Enable Heatmap",
-    "event_tooltips": "Event Tooltips",
+    "event_tooltips": "Event Buildings",
     "exclude_mode": "Exclude Mode (NOT)",
     "exclude_mode_help": "When enabled, this filter will EXCLUDE buildings that match the criteria instead of including them",
     "export_csv": "Export CSV",

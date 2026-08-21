@@ -135,7 +135,7 @@
     "efficiency_scatter_plots": "Graphiques de Nuage de Points d'Efficacité",
     "efficiency_weights": "Efficacité pondérée",
     "enable_heatmap": "Activer la Heatmap",
-    "event_tooltips": "Infobulles d'événement",
+    "event_tooltips": "Bâtiments d'événement",
     "exclude_mode": "Mode Exclusion (NON)",
     "exclude_mode_help": "Quand activé, ce filtre EXCLURA les bâtiments qui correspondent aux critères au lieu de les inclure",
     "export_csv": "Exporter CSV",
