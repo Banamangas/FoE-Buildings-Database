@@ -1,7 +1,7 @@
-from copy import deepcopy
 from dataclasses import dataclass, field
 import html
 import re
+from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
@@ -215,94 +215,84 @@ def _resolve_entity_for_era(
 ) -> Dict[str, Any]:
     """Return an entity view with selected-era components overlaid on AllAge.
 
-    Raw entity objects are cached and shared by Streamlit, so this helper always
-    builds a deep copy instead of mutating the API payload.
+    The original cached entity is never mutated: all nested structures that are
+    modified are replaced by newly-created dicts/lists.  Everything else is
+    shared read-only.
     """
-    resolved = deepcopy(entity)
     components = entity.get("components", {})
-    all_age = deepcopy(components.get("AllAge", {}))
+    all_age = components.get("AllAge", {})
     era_components = components.get(era_key, {}) if era_key else {}
 
-    if isinstance(era_components, dict):
-        selected_lookup = era_components.get("lookup")
-        all_age_lookup = all_age.get("lookup")
-        shared_boost_component = deepcopy(all_age.get("boosts", {}))
-        selected_boost_component = deepcopy(era_components.get("boosts", {}))
+    if not isinstance(era_components, dict) or not era_components:
+        return {**entity, "components": {"AllAge": dict(all_age)}}
+
+    # Start with a shallow merge of AllAge and the selected era's top-level keys.
+    merged_all_age = {**all_age, **era_components}
+
+    selected_lookup = era_components.get("lookup")
+    all_age_lookup = all_age.get("lookup")
+    shared_boost_component = all_age.get("boosts", {})
+    selected_boost_component = era_components.get("boosts", {})
+    shared_resource_component = all_age.get("staticResources", {})
+    selected_resource_component = era_components.get("staticResources", {})
+
+    if shared_boost_component and selected_boost_component:
         shared_boosts = shared_boost_component.get("boosts", [])
         selected_boosts = selected_boost_component.get("boosts", [])
-        shared_resource_component = deepcopy(all_age.get("staticResources", {}))
-        selected_resource_component = deepcopy(
-            era_components.get("staticResources", {})
-        )
-        shared_resources = deepcopy(
+        selected_keys = {
+            (b.get("type"), b.get("targetedFeature") or "all")
+            for b in selected_boosts
+        }
+        merged_boosts = [
+            b
+            for b in shared_boosts
+            if (b.get("type"), b.get("targetedFeature") or "all")
+            not in selected_keys
+        ] + list(selected_boosts)
+        merged_all_age["boosts"] = {
+            **shared_boost_component,
+            **selected_boost_component,
+            "boosts": merged_boosts,
+        }
+
+    if shared_resource_component and isinstance(selected_resource_component, dict):
+        shared_resources = (
             shared_resource_component.get("resources", {}).get("resources", {})
         )
-        selected_resources = deepcopy(
+        selected_resources = (
             selected_resource_component.get("resources", {}).get("resources", {})
         )
-        all_age.update(deepcopy(era_components))
+        merged_resources = dict(shared_resources)
+        for resource, selected_value in selected_resources.items():
+            shared_value = shared_resources.get(resource)
+            both_numeric = (
+                isinstance(shared_value, (int, float))
+                and not isinstance(shared_value, bool)
+                and isinstance(selected_value, (int, float))
+                and not isinstance(selected_value, bool)
+            )
+            merged_resources[resource] = (
+                shared_value + selected_value
+                if both_numeric
+                else selected_value
+            )
+        merged_resource_component = {**shared_resource_component, **selected_resource_component}
+        merged_resource_component["resources"] = {
+            **shared_resource_component.get("resources", {}),
+            **selected_resource_component.get("resources", {}),
+            "resources": merged_resources,
+        }
+        merged_all_age["staticResources"] = merged_resource_component
 
-        if shared_boost_component and selected_boost_component:
-            merged_boost_component = {
-                **shared_boost_component,
-                **selected_boost_component,
-            }
-            selected_keys = {
-                (b.get("type"), b.get("targetedFeature") or "all")
-                for b in selected_boosts
-            }
-            merged_boosts = [
-                b
-                for b in shared_boosts
-                if (b.get("type"), b.get("targetedFeature") or "all")
-                not in selected_keys
-            ] + list(selected_boosts)
-            merged_boost_component["boosts"] = merged_boosts
-            all_age["boosts"] = merged_boost_component
+    if isinstance(all_age_lookup, dict) and isinstance(selected_lookup, dict):
+        merged_lookup = {**all_age_lookup, **selected_lookup}
+        all_rewards = all_age_lookup.get("rewards", {})
+        selected_rewards = selected_lookup.get("rewards", {})
+        if isinstance(all_rewards, dict) and isinstance(selected_rewards, dict):
+            merged_lookup["rewards"] = {**all_rewards, **selected_rewards}
+        merged_all_age["lookup"] = merged_lookup
 
-        if shared_resource_component and isinstance(
-            era_components.get("staticResources"), dict
-        ):
-            merged_resources = deepcopy(shared_resources)
-            for resource, selected_value in selected_resources.items():
-                shared_value = shared_resources.get(resource)
-                both_numeric = (
-                    isinstance(shared_value, (int, float))
-                    and not isinstance(shared_value, bool)
-                    and isinstance(selected_value, (int, float))
-                    and not isinstance(selected_value, bool)
-                )
-                merged_resources[resource] = (
-                    shared_value + selected_value
-                    if both_numeric
-                    else deepcopy(selected_value)
-                )
-            merged_resource_component = {
-                **shared_resource_component,
-                **selected_resource_component,
-            }
-            nested_resources = {
-                **shared_resource_component.get("resources", {}),
-                **selected_resource_component.get("resources", {}),
-                "resources": merged_resources,
-            }
-            merged_resource_component["resources"] = nested_resources
-            all_age["staticResources"] = merged_resource_component
-
-        if isinstance(all_age_lookup, dict) and isinstance(selected_lookup, dict):
-            merged_lookup = deepcopy(all_age_lookup)
-            merged_lookup.update(deepcopy(selected_lookup))
-            all_rewards = all_age_lookup.get("rewards", {})
-            selected_rewards = selected_lookup.get("rewards", {})
-            if isinstance(all_rewards, dict) and isinstance(selected_rewards, dict):
-                merged_lookup["rewards"] = {
-                    **deepcopy(all_rewards),
-                    **deepcopy(selected_rewards),
-                }
-            all_age["lookup"] = merged_lookup
-
-    resolved["components"] = {"AllAge": all_age}
-    return resolved
+    return {**entity, "components": {"AllAge": merged_all_age}}
 
 
 def _humanize_identifier(identifier: str) -> str:
@@ -445,6 +435,7 @@ def _make_icon_resolver(asset_map: Mapping[str, str]) -> IconResolver:
     """Bind one read-only ForgeHX map to all icon lookups in an assembly."""
     read_only_assets = MappingProxyType(asset_map)
 
+    @lru_cache(maxsize=None)
     def resolve(key: str, label: str, entity_asset_id: Optional[str]) -> ResolvedIcon:
         return resolve_game_icon(
             key,

@@ -12,6 +12,7 @@ from foe_buildings import i18n as translations
 from foe_buildings.config import SessionKeys
 from foe_buildings.data import loader as data_loader
 from foe_buildings.ui import tooltip as tooltip_renderer
+from foe_buildings.ui import tooltip_icons
 from foe_buildings.ui.styles import load_tooltip_css
 from foe_buildings.ui.tooltip import (
     RandomOutcome,
@@ -497,13 +498,13 @@ def _building_id_html(building_id: str) -> str:
     )
 
 
-def _render_building_card(
+def _render_building_card_html(
     building_data: pd.Series,
     sections: List[TooltipSection],
     lang_code: str,
     image_manager: Any,
-) -> None:
-    """Render one building card with left and right panels."""
+) -> str:
+    """Return the HTML for one building card with left and right panels."""
     size_section, other_sections = _split_size_time_road_section(sections)
     other_sections = _reorder_event_tooltip_sections(other_sections)
     building_name = building_data.get(config.COL_NAME, "")
@@ -535,7 +536,7 @@ def _render_building_card(
             continue
         right_parts.append(_render_tooltip_section_html(section, lang_code))
 
-    card_html = (
+    return (
         f'<div class="foe-event-tooltip-card">'
         f'<div class="foe-event-tooltip-name">{html.escape(str(building_name))}</div>'
         f'<div class="foe-event-tooltip-body">'
@@ -543,27 +544,18 @@ def _render_building_card(
         f'<div class="foe-event-tooltip-right">{"".join(right_parts)}</div>'
         f"</div></div>"
     )
-    st.markdown(card_html, unsafe_allow_html=True)
 
 
-@st.cache_data
-def _cached_building_tooltip_sections(
-    building_id: str,
-    era_key: str,
+def _render_building_card(
+    building_data: pd.Series,
+    sections: List[TooltipSection],
     lang_code: str,
-    building_name: str,
-) -> List[TooltipSection]:
-    """Cache tooltip sections per building, era, and language."""
-    lookup = data_loader.load_building_entity_lookup()
-    entity = lookup.get(building_id)
-    if not entity or not entity.get("components"):
-        return []
-    return tooltip_renderer.render_building_tooltip(
-        entity,
-        lang_code,
-        building_name=building_name,
-        image_url=None,
-        era_key=era_key if era_key else None,
+    image_manager: Any,
+) -> None:
+    """Render one building card with left and right panels."""
+    st.markdown(
+        _render_building_card_html(building_data, sections, lang_code, image_manager),
+        unsafe_allow_html=True,
     )
 
 
@@ -571,16 +563,116 @@ def _resolve_building_sections(
     building_data: pd.Series,
     era_key: str,
     lang_code: str,
+    lookup: Dict[str, Any],
+    asset_map: Optional[Dict[str, str]] = None,
 ) -> List[TooltipSection]:
-    """Return tooltip sections for a building, using cache when possible."""
+    """Return tooltip sections for a building, using preloaded data and assets."""
     building_id = building_data.get("id")
     building_name = building_data.get(config.COL_NAME)
-    return _cached_building_tooltip_sections(
-        building_id=str(building_id),
-        era_key=era_key,
-        lang_code=lang_code,
+    entity = lookup.get(building_id)
+    if not entity or not entity.get("components"):
+        return []
+    return tooltip_renderer.render_building_tooltip(
+        entity,
+        lang_code,
         building_name=str(building_name),
+        image_url=None,
+        era_key=era_key if era_key else None,
+        asset_map=asset_map,
     )
+
+
+_CSS_LOADED_KEY = "_event_tooltip_css_loaded"
+_CARDS_CACHE_KEY = "_event_tooltip_cards_cache"
+
+
+def _building_card_cache_key(
+    selected_event: str,
+    selected_era_key: str,
+    lang_code: str,
+    event_buildings: pd.DataFrame,
+) -> Tuple[str, str, str, Tuple[Tuple[str, str, str], ...]]:
+    """Return a stable key for the rendered card list."""
+    building_keys = tuple(
+        (
+            str(row.get("id", "")),
+            str(row.get(config.COL_NAME, "")),
+            str(row.get(config.COL_ASSET_ID, "")),
+        )
+        for _, row in event_buildings.iterrows()
+    )
+    return (selected_event, selected_era_key, lang_code, building_keys)
+
+
+def _no_tooltip_data_card_html(building_data: pd.Series, lang_code: str) -> str:
+    """Return a placeholder card when no tooltip data is available."""
+    building_name = building_data.get(config.COL_NAME, "")
+    message = translations.get_text("no_tooltip_data", lang_code)
+    return (
+        f'<div class="foe-event-tooltip-card">'
+        f'<div class="foe-event-tooltip-name">{html.escape(str(building_name))}</div>'
+        f'<div class="foe-event-tooltip-body">{html.escape(message)}</div>'
+        f"</div>"
+    )
+
+
+def _resolve_all_eras_sections(
+    building_data: pd.Series,
+    lang_code: str,
+    lookup: Dict[str, Any],
+    asset_map: Optional[Dict[str, str]] = None,
+) -> List[TooltipSection]:
+    """Resolve and aggregate the two extreme-era section sets for a building."""
+    sections_per_era: Dict[str, List[TooltipSection]] = {}
+    for era_key in (_MAX_ERA_KEY, _MIN_ERA_KEY):
+        sections = _resolve_building_sections(
+            building_data, era_key, lang_code, lookup, asset_map=asset_map
+        )
+        if sections:
+            sections_per_era[era_key] = sections
+    unit_era_token = _infer_unit_era_token(
+        sections_per_era.get(_MIN_ERA_KEY, [])
+    )
+    return _aggregate_tooltip_sections(
+        sections_per_era,
+        lang_code=lang_code,
+        unit_era_token=unit_era_token,
+    )
+
+
+def _generate_event_cards_html(
+    event_buildings: pd.DataFrame,
+    selected_era_key: str,
+    lang_code: str,
+    image_manager: Any,
+    lookup: Dict[str, Any],
+    asset_map: Optional[Dict[str, str]] = None,
+) -> List[str]:
+    """Generate one HTML card per building for the selected event and era."""
+    cards: List[str] = []
+    for _, building_data in event_buildings.iterrows():
+        if selected_era_key == _ALL_ERAS_SENTINEL:
+            sections = _resolve_all_eras_sections(
+                building_data, lang_code, lookup, asset_map=asset_map
+            )
+        else:
+            sections = _resolve_building_sections(
+                building_data,
+                selected_era_key,
+                lang_code,
+                lookup,
+                asset_map=asset_map,
+            )
+
+        if not sections:
+            cards.append(_no_tooltip_data_card_html(building_data, lang_code))
+        else:
+            cards.append(
+                _render_building_card_html(
+                    building_data, sections, lang_code, image_manager
+                )
+            )
+    return cards
 
 
 def render_event_tooltips(
@@ -591,7 +683,11 @@ def render_event_tooltips(
     image_manager: Any,
 ) -> None:
     """Render the Event Tooltips tab."""
-    st.markdown(load_tooltip_css(), unsafe_allow_html=True)
+    # Inject tooltip CSS once per session; it is harmless to keep in the DOM.
+    if not st.session_state.get(_CSS_LOADED_KEY):
+        st.markdown(load_tooltip_css(), unsafe_allow_html=True)
+        st.session_state[_CSS_LOADED_KEY] = True
+
     st.header(translations.get_text("event_tooltips", lang_code))
 
     available_events = sorted(df_original[config.COL_EVENT].unique())
@@ -670,42 +766,31 @@ def render_event_tooltips(
             if translations.translate_era_key(era, lang_code) == selected_era_label
         )
 
-    # Render in rows of the user-selected column count.
-    building_rows = [
-        event_buildings.iloc[i : i + num_columns]
-        for i in range(0, len(event_buildings), num_columns)
-    ]
+    # Load shared data once per render so that the per-building loop does not
+    # repeatedly hit the Streamlit cache machinery.
+    lookup = data_loader.load_building_entity_lookup()
+    asset_map = tooltip_icons.load_forgehx_asset_map()
 
-    for row_df in building_rows:
-        cols = st.columns(num_columns, gap="small")
-        for col, (_, building_data) in zip(cols, row_df.iterrows()):
-            with col:
-                if selected_era_key == _ALL_ERAS_SENTINEL:
-                    sections_per_era: Dict[str, List[TooltipSection]] = {}
-                    for era_key in (_MAX_ERA_KEY, _MIN_ERA_KEY):
-                        sections = _resolve_building_sections(
-                            building_data, era_key, lang_code
-                        )
-                        if sections:
-                            sections_per_era[era_key] = sections
-                    unit_era_token = _infer_unit_era_token(
-                        sections_per_era.get(_MIN_ERA_KEY, [])
-                    )
-                    sections = _aggregate_tooltip_sections(
-                        sections_per_era,
-                        lang_code=lang_code,
-                        unit_era_token=unit_era_token,
-                    )
-                else:
-                    sections = _resolve_building_sections(
-                        building_data, selected_era_key, lang_code
-                    )
+    cache_key = _building_card_cache_key(
+        selected_event, selected_era_key, lang_code, event_buildings
+    )
+    cached = st.session_state.get(_CARDS_CACHE_KEY)
+    if cached is not None and cached[0] == cache_key:
+        cards_html = cached[1]
+    else:
+        cards_html = _generate_event_cards_html(
+            event_buildings,
+            selected_era_key,
+            lang_code,
+            image_manager,
+            lookup,
+            asset_map=asset_map,
+        )
+        st.session_state[_CARDS_CACHE_KEY] = (cache_key, cards_html)
 
-                if not sections:
-                    st.info(
-                        translations.get_text("no_tooltip_data", lang_code),
-                        icon="⚠️",
-                    )
-                    continue
-
-                _render_building_card(building_data, sections, lang_code, image_manager)
+    grid_html = (
+        f'<div class="foe-event-tooltip-grid" '
+        f'style="grid-template-columns: repeat({num_columns}, minmax(0, 1fr));"'
+        f'>{"".join(cards_html)}</div>'
+    )
+    st.markdown(grid_html, unsafe_allow_html=True)
