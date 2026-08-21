@@ -167,6 +167,16 @@ class TooltipRow:
     show_label: bool = False
     duration: Optional[int] = None
     markers: List[ResolvedIcon] = field(default_factory=list)
+    # Optional aggregation key for rewards whose identity changes per era
+    # (e.g. era-specific unit names). When set, the All-eras view groups by
+    # ``group_key`` and renders the generic ``group_label``/``group_icon_key``.
+    group_key: Optional[str] = None
+    group_label: Optional[str] = None
+    group_icon_key: Optional[str] = None
+    # When True, ``value`` is trusted HTML and should not be escaped.
+    value_is_html: bool = False
+    # When True, the row label is rendered as visible text after the value.
+    display_label: bool = False
 
 
 @dataclass
@@ -299,6 +309,112 @@ def _humanize_identifier(identifier: str) -> str:
     return identifier.replace("_", " ").strip().title()
 
 
+def _unit_class_from_reward_id(reward_id: Optional[str]) -> Optional[str]:
+    """Extract the unit class segment from ids like ``era_unit#short_ranged#...``."""
+    if not reward_id or "#" not in reward_id:
+        return None
+    parts = reward_id.split("#")
+    if len(parts) >= 3 and "unit" in parts[0].lower():
+        return parts[1]
+    return None
+
+
+_UNIT_CLASS_TRANSLATION_KEYS = {
+    "fast": "fast_units",
+    "heavy_melee": "heavy_units",
+    "light_melee": "light_units",
+    "short_ranged": "ranged_units",
+    "long_ranged": "artillery_units",
+}
+
+_NEXT_AGE_UNIT_CLASS_TRANSLATION_KEYS = {
+    "fast": "next_age_fast_units",
+    "heavy_melee": "next_age_heavy_units",
+    "light_melee": "next_age_light_units",
+    "short_ranged": "next_age_ranged_units",
+    "long_ranged": "next_age_artillery_units",
+}
+
+_UNIT_CLASS_ICON_KEYS = {
+    "fast": "fast_units",
+    "heavy_melee": "heavy_units",
+    "light_melee": "light_units",
+    "short_ranged": "ranged_units",
+    "long_ranged": "artillery_units",
+    "rogue": "rogues",
+    "rogues": "rogues",
+}
+
+_NEXT_AGE_UNIT_CLASS_ICON_KEYS = {
+    "fast": "next_age_fast_units",
+    "heavy_melee": "next_age_heavy_units",
+    "light_melee": "next_age_light_units",
+    "short_ranged": "next_age_ranged_units",
+    "long_ranged": "next_age_artillery_units",
+    "rogue": "rogues",
+    "rogues": "rogues",
+}
+
+
+def _era_token_from_reward_id(reward_id: Optional[str]) -> Optional[str]:
+    """Return the era token (e.g. ``CurrentEra``) from ids like ``era_unit#fast#NextEra#10``."""
+    if not reward_id or "#" not in reward_id:
+        return None
+    parts = reward_id.split("#")
+    if len(parts) >= 3 and "unit" in parts[0].lower():
+        return parts[2]
+    return None
+
+
+def _unit_class_icon_key(unit_class: str, era_token: Optional[str] = None) -> str:
+    """Return a stable icon key for a unit class, falling back to ``military``."""
+    if not unit_class:
+        return "military"
+    mapping = (
+        _NEXT_AGE_UNIT_CLASS_ICON_KEYS
+        if era_token == "NextEra"
+        else _UNIT_CLASS_ICON_KEYS
+    )
+    key = mapping.get(unit_class)
+    if key:
+        return key
+    if "champion" in unit_class:
+        return "chivalry"
+    return "military"
+
+
+def _unit_group_label(
+    unit_class: str, lang_code: str = "en", era_token: Optional[str] = None
+) -> str:
+    """Return a generic label such as ``Short Ranged Unit`` or ``Next Age Ranged Units``."""
+    mapping = (
+        _NEXT_AGE_UNIT_CLASS_TRANSLATION_KEYS
+        if era_token == "NextEra"
+        else _UNIT_CLASS_TRANSLATION_KEYS
+    )
+    translation_key = mapping.get(unit_class)
+    if translation_key:
+        return translations.translate_column(translation_key, lang_code)
+    return f"{_humanize_identifier(unit_class)} Unit"
+
+
+def _unit_era_token_from_rewards(possible_rewards: List[Dict[str, Any]]) -> Optional[str]:
+    """Return the era token (e.g. ``CurrentEra``) from a unit chest's rewards."""
+    for entry in possible_rewards:
+        reward = entry.get("reward", {}) if isinstance(entry, dict) else {}
+        reward_id = reward.get("id") or ""
+        token = _era_token_from_reward_id(reward_id)
+        if token:
+            return token
+    return None
+
+
+_ERA_TOKEN_LABEL_KEYS = {
+    "CurrentEra": "random_units_of_current_age",
+    "NextEra": "random_units_of_next_age",
+}
+
+
 def _with_feature_context(label: str, feature: str, lang_code: str) -> str:
     text_key = _FEATURE_TEXT_KEYS.get(feature)
     if feature == "all":
@@ -369,9 +485,10 @@ def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
     """Return escaped HTML for one quantitative or semantic tooltip row."""
     del lang_code
     accessible_text = _escaped(f"{row.label}: {row.value}")
+    value_html = row.value if row.value_is_html else _escaped(row.value)
     parts = [
         _tooltip_icon_html(row.icon, "foe-tooltip-icon"),
-        f'<span class="foe-tooltip-value">{_escaped(row.value)}</span>',
+        f'<span class="foe-tooltip-value">{value_html}</span>',
     ]
     if row.suffix:
         parts.append(f'<em class="foe-tooltip-suffix">{_escaped(row.suffix)}</em>')
@@ -380,6 +497,8 @@ def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
             '<span class="foe-tooltip-duration">'
             f"{_escaped(format_time(row.duration))}</span>"
         )
+    if row.display_label:
+        parts.append(f'<span class="foe-tooltip-label">{_escaped(row.label)}</span>')
     parts.extend(
         _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in row.markers
     )
@@ -392,9 +511,11 @@ def _tooltip_row_html(row: TooltipRow, lang_code: str) -> str:
 def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
     """Return escaped HTML for one independent random-production pool."""
     accessible_text = _escaped(translations.get_text("random_production", lang_code))
-    header = (
-        f'<div class="tooltip-random-header">{accessible_text}</div>'
+    header_parts = [accessible_text]
+    header_parts.extend(
+        _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in group.markers
     )
+    header = f'<div class="tooltip-random-header">{"".join(header_parts)}</div>'
     outcomes = []
     for outcome in group.outcomes:
         probability = _escaped(f"{outcome.probability}%")
@@ -412,9 +533,6 @@ def _random_group_html(group: RandomProductionGroup, lang_code: str) -> str:
             '<span class="foe-tooltip-duration">'
             f"{_escaped(format_time(group.duration))}</span>"
         )
-    metadata.extend(
-        _tooltip_icon_html(marker, "foe-tooltip-marker") for marker in group.markers
-    )
     metadata_html = (
         f'<div class="tooltip-random-metadata">{"".join(metadata)}</div>'
         if metadata
@@ -1119,12 +1237,52 @@ def _generic_reward_display(
         )
 
     if reward.get("type") == "unit" and reward.get("subType"):
-        label = parsed_name or reward_id or ""
+        unit_class = _unit_class_from_reward_id(reward_id)
+        era_token = _era_token_from_reward_id(reward_id)
+        sub_type = str(reward["subType"])
+        group_key = f"{era_token}#{unit_class}" if (era_token and unit_class) else (unit_class or sub_type)
+        if unit_class:
+            label = _unit_group_label(unit_class, lang_code, era_token=era_token)
+            icon = _icon(
+                _unit_class_icon_key(unit_class, era_token=era_token),
+                label,
+                icon_resolver=icon_resolver,
+            )
+        else:
+            label = parsed_name or reward_id or ""
+            icon = _unit_icon(sub_type, label, icon_resolver=icon_resolver)
+        group_class = unit_class or sub_type
         return TooltipRow(
-            icon=_unit_icon(str(reward["subType"]), label, icon_resolver=icon_resolver),
+            icon=icon,
             label=label,
             value=str(amount),
+            display_label=True,
+            group_key=group_key,
+            group_label=_unit_group_label(group_class, lang_code, era_token=era_token),
+            group_icon_key=_unit_class_icon_key(group_class, era_token=era_token),
         )
+
+    # Chest rewards that contain only units (e.g. "+20 Random Next Age Units")
+    # describe an actual unit payout. Show the unit count and a stable label.
+    if reward.get("type") == "chest" and reward.get("possible_rewards"):
+        possible = reward["possible_rewards"]
+        if all(
+            isinstance(entry, dict)
+            and entry.get("reward", {}).get("type") == "unit"
+            for entry in possible
+        ):
+            era_token = _unit_era_token_from_rewards(possible)
+            label_key = _ERA_TOKEN_LABEL_KEYS.get(era_token) if era_token else None
+            if label_key:
+                label = translations.get_text(label_key, lang_code)
+            else:
+                label = parsed_name or reward_id or ""
+            return TooltipRow(
+                icon=_icon("military", label, icon_resolver=icon_resolver),
+                label=label,
+                value=str(parsed_amount if parsed_amount is not None else amount),
+                display_label=True,
+            )
 
     icon_asset = reward.get("iconAssetName")
     markers = []
@@ -1226,12 +1384,23 @@ def _render_product(
         amount = product.get("amount", 0)
         if amount:
             unit_type = product.get("unitTypeId", "military")
-            label = translations.translate_column(unit_type, lang_code)
+            if unit_type in _UNIT_CLASS_TRANSLATION_KEYS:
+                label = _unit_group_label(unit_type, lang_code)
+                icon = _icon(
+                    _unit_class_icon_key(unit_type), label, icon_resolver=icon_resolver
+                )
+            else:
+                label = translations.translate_column(unit_type, lang_code)
+                icon = _unit_icon(unit_type, label, icon_resolver)
             rows.append(
                 TooltipRow(
-                    icon=_unit_icon(unit_type, label, icon_resolver),
+                    icon=icon,
                     label=label,
                     value=str(amount),
+                    display_label=True,
+                    group_key=unit_type,
+                    group_label=_unit_group_label(unit_type, lang_code),
+                    group_icon_key=_unit_class_icon_key(unit_type),
                 )
             )
 

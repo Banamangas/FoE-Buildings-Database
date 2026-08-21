@@ -293,6 +293,8 @@
     "qi_optimizer_help": "Find optimal building combinations to reach your target QI bonuses. This tool will calculate all possible combinations that meet your requirements and rank them by efficiency.",
     "ranking_points": "Ranking Points",
     "random_production": "Random production",
+    "random_units_of_current_age": "Random Units of the Current Age",
+    "random_units_of_next_age": "Random Units of the Next Age",
     "radar_chart": "Radar Chart",
     "reminder_city_context": "**Reminder** : If you enter weights for production, please update your boosts and city production in the 'Your City Context' section to have optimal and realistic results.",
     "remove_filter": "Remove Filter",

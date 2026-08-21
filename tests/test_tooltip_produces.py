@@ -290,6 +290,78 @@ def test_generic_unit_rewards_use_normal_unit_icon_semantics(monkeypatch):
     ]
 
 
+def test_generic_unit_reward_carries_aggregation_group(monkeypatch):
+    def fake_resolve_game_icon(key, accessible_name, entity_asset_id=None):
+        return ResolvedIcon(key, f"{key}.png", accessible_name)
+
+    monkeypatch.setattr(tooltip, "resolve_game_icon", fake_resolve_game_icon)
+    reward_id = "era_unit#short_ranged#CurrentEra#12"
+    rewards = {
+        reward_id: {
+            "name": "12x Slinger",
+            "type": "unit",
+            "subType": "slinger",
+        },
+    }
+    entity = production_entity(
+        option(
+            86400,
+            {"type": "genericReward", "reward": {"id": reward_id}},
+        ),
+        rewards=rewards,
+    )
+
+    row = _render_produces(entity, "en").rows[0]
+    assert row.label == "Ranged Units"
+    assert row.value == "12"
+    assert row.group_key == "CurrentEra#short_ranged"
+    assert row.group_label == "Ranged Units"
+    assert row.group_icon_key == "ranged_units"
+
+
+def test_chest_reward_uses_name_quantity_for_unit_chest(monkeypatch):
+    def fake_resolve_game_icon(key, accessible_name, entity_asset_id=None):
+        return ResolvedIcon(key, f"{key}.png", accessible_name)
+
+    monkeypatch.setattr(tooltip, "resolve_game_icon", fake_resolve_game_icon)
+    rewards = {
+        "unit_chest": {
+            "name": "+20 Random Next Age Units",
+            "type": "chest",
+            "iconAssetName": "military",
+            "possible_rewards": [
+                {
+                    "drop_chance": 100,
+                    "reward": {
+                        "type": "unit",
+                        "subType": "militiaman",
+                        "amount": 20,
+                        "name": "20x Soldier",
+                        "id": "era_unit#light_melee#NextEra#20",
+                    },
+                }
+            ],
+        }
+    }
+    entity = production_entity(
+        option(
+            86400,
+            {
+                "type": "genericReward",
+                "reward": {"id": "unit_chest"},
+                "onlyWhenMotivated": True,
+            },
+        ),
+        rewards=rewards,
+    )
+
+    row = _render_produces(entity, "en").rows[0]
+    assert row.value == "20"
+    assert row.label == "Random Units of the Next Age"
+    assert row.icon.key == "military"
+    assert any(marker.key == "when_motivated" for marker in row.markers)
+
+
 @pytest.mark.parametrize(
     ("resource", "expected_icon"),
     [

@@ -13,13 +13,121 @@ from foe_buildings.config import SessionKeys
 from foe_buildings.data import loader as data_loader
 from foe_buildings.ui import tooltip as tooltip_renderer
 from foe_buildings.ui.styles import load_tooltip_css
-from foe_buildings.ui.tooltip import TooltipRow, TooltipSection
+from foe_buildings.ui.tooltip import (
+    RandomOutcome,
+    RandomProductionGroup,
+    TooltipRow,
+    TooltipSection,
+)
+from foe_buildings.ui.tooltip_icons import resolve_game_icon
+from foe_buildings.ui.tooltip import (
+    _unit_class_icon_key as _tooltip_unit_class_icon_key,
+    _unit_group_label as _tooltip_unit_group_label,
+)
 
 _ALL_ERAS_SENTINEL = "__all_eras__"
 # Extreme eras used for the fast "All eras" overview. Rendering only two eras
 # per building keeps initial load responsive; specific eras load on demand.
 _MIN_ERA_KEY = "BronzeAge"
 _MAX_ERA_KEY = "StellarAgeDiscovery"
+
+_ERA_KEYS = list(config.ERAS_DICT.keys())
+
+
+def _era_sort_rank(era_key: str) -> int:
+    """Return a rank where the oldest era sorts first.
+
+    ``config.ERAS_DICT`` is ordered newest-first, so we reverse that order.
+    """
+    try:
+        return _ERA_KEYS.index(era_key)
+    except ValueError:
+        return -1
+
+
+_UNIT_GROUP_KEY_RE = re.compile(r"^(?P<era>[^#]+)#(?P<unit_class>.+)$")
+
+
+def _unit_class_from_group_key(group_key: Optional[str]) -> Optional[str]:
+    """Return the unit class part of a group key like ``NextEra#fast``."""
+    if not group_key:
+        return None
+    match = _UNIT_GROUP_KEY_RE.match(group_key)
+    return match.group("unit_class") if match else None
+
+
+def _infer_unit_era_token(
+    sections: List[TooltipSection],
+) -> Optional[str]:
+    """Return the era token (CurrentEra/NextEra) used by unit rows, if any."""
+    for section in sections:
+        for row in section.rows:
+            token = _unit_era_token_from_group_key(row.group_key)
+            if token in ("CurrentEra", "NextEra"):
+                return token
+        for group in section.random_groups:
+            for outcome in group.outcomes:
+                token = _unit_era_token_from_group_key(outcome.row.group_key)
+                if token in ("CurrentEra", "NextEra"):
+                    return token
+    return None
+
+
+def _unit_era_token_from_group_key(group_key: Optional[str]) -> Optional[str]:
+    if not group_key:
+        return None
+    match = _UNIT_GROUP_KEY_RE.match(group_key)
+    return match.group("era") if match else None
+
+
+def _normalize_unit_row_for_all_eras(
+    row: TooltipRow,
+    unit_era_token: str,
+    lang_code: str,
+) -> TooltipRow:
+    """Force a unit row to use the given era token for label/icon/grouping."""
+    unit_class = _unit_class_from_group_key(row.group_key)
+    if unit_class is None:
+        return row
+    label = _tooltip_unit_group_label(unit_class, lang_code, era_token=unit_era_token)
+    icon = resolve_game_icon(
+        _tooltip_unit_class_icon_key(unit_class, era_token=unit_era_token),
+        label,
+    )
+    return TooltipRow(
+        icon=icon,
+        label=label,
+        value=row.value,
+        suffix=row.suffix,
+        show_label=row.show_label,
+        display_label=row.display_label,
+        duration=row.duration,
+        markers=row.markers,
+        group_key=unit_class,
+        group_label=label,
+        group_icon_key=_tooltip_unit_class_icon_key(
+            unit_class, era_token=unit_era_token
+        ),
+    )
+
+
+_NATURAL_SORT_RE = re.compile(r"^(.*?)(\d+)([a-zA-Z]?)$")
+
+
+def _natural_building_id_key(building_id: Any) -> Tuple[str, int, str]:
+    """Return a sort key that orders numeric suffixes naturally.
+
+    Examples:
+        W_MultiAge_FALL26A1   -> ("W_MultiAge_FALL26A", 1, "")
+        W_MultiAge_FALL26A10  -> ("W_MultiAge_FALL26A", 10, "")
+        W_MultiAge_FALL26A10a -> ("W_MultiAge_FALL26A", 10, "a")
+    """
+    text = str(building_id) if building_id is not None else ""
+    match = _NATURAL_SORT_RE.match(text)
+    if not match:
+        return (text, 0, "")
+    prefix, number, suffix = match.groups()
+    return (prefix, int(number), suffix.lower())
 
 
 def _parse_numeric_value(value: str) -> Optional[Tuple[float, str]]:
@@ -33,14 +141,18 @@ def _parse_numeric_value(value: str) -> Optional[Tuple[float, str]]:
     return (number, suffix)
 
 
-def _format_numeric_range(min_val: float, max_val: float, suffix: str) -> str:
-    """Format a numeric range, collapsing identical values."""
-    if min_val == max_val:
-        formatted = f"{int(min_val)}" if min_val == int(min_val) else f"{min_val}"
+def _format_numeric_range(left: float, right: float, suffix: str) -> str:
+    """Format a numeric range, collapsing identical values.
+
+    ``left`` and ``right`` are expected to be in era order (earliest era on
+    the left, latest era on the right), not min/max order.
+    """
+    if left == right:
+        formatted = f"{int(left)}" if left == int(left) else f"{left}"
         return f"{formatted}{suffix}"
-    min_str = f"{int(min_val)}" if min_val == int(min_val) else f"{min_val}"
-    max_str = f"{int(max_val)}" if max_val == int(max_val) else f"{max_val}"
-    return f"{min_str} - {max_str}{suffix}"
+    left_str = f"{int(left)}" if left == int(left) else f"{left}"
+    right_str = f"{int(right)}" if right == int(right) else f"{right}"
+    return f"{left_str} - {right_str}{suffix}"
 
 
 def _aggregate_tooltip_rows(rows: List[TooltipRow]) -> TooltipRow:
@@ -63,10 +175,12 @@ def _aggregate_tooltip_rows(rows: List[TooltipRow]) -> TooltipRow:
             non_numeric_values.append(row.value)
 
     if numeric_values and len(numeric_values) == len(rows):
-        numbers = [v[0] for v in numeric_values]
+        # Rows are expected to be sorted from earliest era to latest era.
+        left = numeric_values[0][0]
+        right = numeric_values[-1][0]
         suffixes = {v[1] for v in numeric_values}
         suffix = next(iter(suffixes)) if len(suffixes) == 1 else ""
-        aggregated_value = _format_numeric_range(min(numbers), max(numbers), suffix)
+        aggregated_value = _format_numeric_range(left, right, suffix)
     else:
         unique_values = []
         seen = set()
@@ -76,26 +190,57 @@ def _aggregate_tooltip_rows(rows: List[TooltipRow]) -> TooltipRow:
                 unique_values.append(value)
         aggregated_value = " / ".join(unique_values)
 
+    # For era-variant rewards (units) render a generic label/icon in All eras.
+    group_key = first.group_key
+    if group_key and all(row.group_key == group_key for row in rows):
+        label = first.group_label or first.label
+        icon = (
+            resolve_game_icon(first.group_icon_key, label)
+            if first.group_icon_key
+            else first.icon
+        )
+    else:
+        label = first.label
+        icon = first.icon
+
     return TooltipRow(
-        icon=first.icon,
-        label=first.label,
+        icon=icon,
+        label=label,
         value=aggregated_value,
         suffix=first.suffix,
         show_label=first.show_label,
+        display_label=first.display_label,
         duration=first.duration,
         markers=first.markers,
+        group_key=group_key,
+        group_label=first.group_label,
+        group_icon_key=first.group_icon_key,
     )
 
 
 def _row_identity(row: TooltipRow) -> Tuple:
-    """Return a hashable identity for grouping equivalent rows across eras."""
+    """Return a hashable identity for grouping equivalent rows across eras.
+
+    Rows that carry a ``group_key`` (e.g. era-specific units) are grouped by
+    that key so the All-eras view can collapse them into a single generic row.
+    Duration is part of the identity so that mixed-duration productions do not
+    get merged into a single misleading range.
+    """
     icon_key = row.icon.key if row.icon is not None else None
     marker_keys = tuple(m.key if m is not None else None for m in row.markers)
-    return (row.label, icon_key, row.suffix, marker_keys)
+    return (
+        row.group_key or row.label,
+        row.group_icon_key if row.group_key else icon_key,
+        row.suffix,
+        row.duration,
+        marker_keys,
+    )
 
 
 def _aggregate_tooltip_sections(
     sections_per_era: Dict[str, List[TooltipSection]],
+    lang_code: str = "en",
+    unit_era_token: Optional[str] = None,
 ) -> List[TooltipSection]:
     """Merge per-era sections, aggregating matching rows into ranges."""
     if not sections_per_era:
@@ -119,21 +264,50 @@ def _aggregate_tooltip_sections(
 
             bucket = rows_by_section[section_key]
             for row in section.rows:
+                if unit_era_token is not None and row.group_key is not None:
+                    row = _normalize_unit_row_for_all_eras(
+                        row, unit_era_token, lang_code
+                    )
                 identity = _row_identity(row)
-                bucket["rows"].setdefault(identity, []).append(row)
+                bucket["rows"].setdefault(identity, []).append((era, row))
 
             # Random groups are not aggregated in the MVP; keep the first era's groups.
             if section.random_groups and not bucket["random_groups"]:
-                bucket["random_groups"] = section.random_groups
+                normalized_groups = []
+                for group in section.random_groups:
+                    normalized_outcomes = []
+                    for outcome in group.outcomes:
+                        row = outcome.row
+                        if unit_era_token is not None and row.group_key is not None:
+                            row = _normalize_unit_row_for_all_eras(
+                                row, unit_era_token, lang_code
+                            )
+                        normalized_outcomes.append(
+                            RandomOutcome(row=row, probability=outcome.probability)
+                        )
+                    normalized_groups.append(
+                        RandomProductionGroup(
+                            outcomes=normalized_outcomes,
+                            duration=group.duration,
+                            markers=group.markers,
+                        )
+                    )
+                bucket["random_groups"] = normalized_groups
 
     aggregated: List[TooltipSection] = []
     first_era_sections = next(iter(sections_per_era.values()))
     for key in section_order:
         bucket = rows_by_section[key]
-        aggregated_rows = [
-            _aggregate_tooltip_rows(rows)
-            for rows in bucket["rows"].values()
-        ]
+        aggregated_rows = []
+        for era_rows in bucket["rows"].values():
+            era_rows_sorted = sorted(
+                era_rows,
+                key=lambda pair: _era_sort_rank(pair[0]),
+                reverse=True,
+            )
+            aggregated_rows.append(
+                _aggregate_tooltip_rows([row for _, row in era_rows_sorted])
+            )
         # Preserve original row order from the first era that introduced each identity.
         first_section = next(
             (s for s in first_era_sections if (s.key if s.key is not None else "") == key),
@@ -268,6 +442,7 @@ def _reformat_fragment_row(row: TooltipRow) -> TooltipRow:
         show_label=False,
         duration=row.duration,
         markers=remaining_markers,
+        value_is_html=True,
     )
 
 
@@ -295,8 +470,31 @@ def _render_tooltip_section_html(section: TooltipSection, lang_code: str) -> str
         )
     parts.append(_render_tooltip_rows_html(section.rows, lang_code))
     for group in section.random_groups:
-        parts.append(_random_group_html(group, lang_code))
+        reformatted_group = RandomProductionGroup(
+            outcomes=[
+                RandomOutcome(
+                    row=_reformat_fragment_row(outcome.row)
+                    if _is_fragment_row(outcome.row)
+                    else outcome.row,
+                    probability=outcome.probability,
+                )
+                for outcome in group.outcomes
+            ],
+            duration=group.duration,
+            markers=group.markers,
+        )
+        parts.append(_random_group_html(reformatted_group, lang_code))
     return f'<div class="foe-tooltip-section foe-tooltip-section-first">{"".join(parts)}</div>'
+
+
+def _building_id_html(building_id: str) -> str:
+    """Return a compact HTML row displaying the building id."""
+    escaped_id = html.escape(str(building_id))
+    return (
+        f'<div class="foe-tooltip-row" role="group" '
+        f'aria-label="ID: {escaped_id}" title="ID: {escaped_id}">'
+        f'ID: {escaped_id}</div>'
+    )
 
 
 def _render_building_card(
@@ -310,39 +508,42 @@ def _render_building_card(
     other_sections = _reorder_event_tooltip_sections(other_sections)
     building_name = building_data.get(config.COL_NAME, "")
 
-    with st.container(border=True):
-        st.markdown('<div class="foe-event-tooltip-card">', unsafe_allow_html=True)
-        st.markdown(
-            f'<div class="foe-event-tooltip-name">{html.escape(str(building_name))}</div>',
-            unsafe_allow_html=True,
-        )
-        left_col, right_col = st.columns([1, 1], gap="small")
+    left_parts: List[str] = []
+    building_asset_id = building_data.get(config.COL_ASSET_ID)
+    if (
+        building_asset_id
+        and image_manager is not None
+        and image_manager.has_image(building_asset_id)
+    ):
+        image_url = image_manager.get_building_image_url(building_asset_id)
+        if image_url:
+            left_parts.append(
+                f'<img src="{html.escape(image_url)}" '
+                f'alt="{html.escape(str(building_name))}">'
+            )
 
-        with left_col:
-            building_asset_id = building_data.get(config.COL_ASSET_ID)
-            if (
-                building_asset_id
-                and image_manager is not None
-                and image_manager.has_image(building_asset_id)
-            ):
-                image_url = image_manager.get_building_image_url(building_asset_id)
-                st.image(image_url, use_container_width=True)
+    if size_section is not None:
+        left_parts.append(_render_tooltip_rows_html(size_section.rows, lang_code))
 
-            if size_section is not None:
-                st.markdown(
-                    _render_tooltip_rows_html(size_section.rows, lang_code),
-                    unsafe_allow_html=True,
-                )
+    building_id = building_data.get("id")
+    if building_id:
+        left_parts.append(_building_id_html(building_id))
 
-        with right_col:
-            for section in other_sections:
-                if not (section.title or section.rows or section.random_groups):
-                    continue
-                st.markdown(
-                    _render_tooltip_section_html(section, lang_code),
-                    unsafe_allow_html=True,
-                )
-        st.markdown("</div>", unsafe_allow_html=True)
+    right_parts: List[str] = []
+    for section in other_sections:
+        if not (section.title or section.rows or section.random_groups):
+            continue
+        right_parts.append(_render_tooltip_section_html(section, lang_code))
+
+    card_html = (
+        f'<div class="foe-event-tooltip-card">'
+        f'<div class="foe-event-tooltip-name">{html.escape(str(building_name))}</div>'
+        f'<div class="foe-event-tooltip-body">'
+        f'<div class="foe-event-tooltip-left">{"".join(left_parts)}</div>'
+        f'<div class="foe-event-tooltip-right">{"".join(right_parts)}</div>'
+        f"</div></div>"
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 @st.cache_data
@@ -409,7 +610,7 @@ def render_event_tooltips(
     if default_event not in available_events:
         default_event = available_events[0]
 
-    col_event, col_era = st.columns([2, 1])
+    col_event, col_era, col_layout = st.columns([2, 1, 1])
     with col_event:
         selected_event = st.selectbox(
             translations.get_text("select_event", lang_code),
@@ -421,7 +622,11 @@ def render_event_tooltips(
 
     event_buildings = df_original[df_original[config.COL_EVENT] == selected_event].copy()
     event_buildings = _deduplicate_buildings(event_buildings)
-    event_buildings = event_buildings.sort_values(by="id", ascending=True)
+    event_buildings = event_buildings.sort_values(
+        by="id",
+        ascending=True,
+        key=lambda series: series.map(_natural_building_id_key),
+    )
 
     event_eras = _get_sorted_event_eras(df_original, selected_event)
     era_options = [translations.get_text("all_eras", lang_code)] + [
@@ -442,6 +647,16 @@ def render_event_tooltips(
         )
     st.session_state[SessionKeys.SELECTED_EVENT_TOOLTIP_ERA] = selected_era_label
 
+    with col_layout:
+        num_columns = st.slider(
+            translations.get_text("columns", lang_code),
+            min_value=1,
+            max_value=4,
+            value=2,
+            step=1,
+            key="event_tooltip_columns_slider",
+        )
+
     if event_buildings.empty:
         st.info(translations.get_text("no_buildings_for_event", lang_code))
         return
@@ -455,13 +670,14 @@ def render_event_tooltips(
             if translations.translate_era_key(era, lang_code) == selected_era_label
         )
 
-    # Render in rows of 3.
+    # Render in rows of the user-selected column count.
     building_rows = [
-        event_buildings.iloc[i : i + 3] for i in range(0, len(event_buildings), 3)
+        event_buildings.iloc[i : i + num_columns]
+        for i in range(0, len(event_buildings), num_columns)
     ]
 
     for row_df in building_rows:
-        cols = st.columns(3, gap="small")
+        cols = st.columns(num_columns, gap="small")
         for col, (_, building_data) in zip(cols, row_df.iterrows()):
             with col:
                 if selected_era_key == _ALL_ERAS_SENTINEL:
@@ -472,7 +688,14 @@ def render_event_tooltips(
                         )
                         if sections:
                             sections_per_era[era_key] = sections
-                    sections = _aggregate_tooltip_sections(sections_per_era)
+                    unit_era_token = _infer_unit_era_token(
+                        sections_per_era.get(_MIN_ERA_KEY, [])
+                    )
+                    sections = _aggregate_tooltip_sections(
+                        sections_per_era,
+                        lang_code=lang_code,
+                        unit_era_token=unit_era_token,
+                    )
                 else:
                     sections = _resolve_building_sections(
                         building_data, selected_era_key, lang_code
