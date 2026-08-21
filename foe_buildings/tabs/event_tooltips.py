@@ -582,7 +582,6 @@ def _resolve_building_sections(
     )
 
 
-_CSS_LOADED_KEY = "_event_tooltip_css_loaded"
 _CARDS_CACHE_KEY = "_event_tooltip_cards_cache"
 
 
@@ -683,10 +682,9 @@ def render_event_tooltips(
     image_manager: Any,
 ) -> None:
     """Render the Event Tooltips tab."""
-    # Inject tooltip CSS once per session; it is harmless to keep in the DOM.
-    if not st.session_state.get(_CSS_LOADED_KEY):
-        st.markdown(load_tooltip_css(), unsafe_allow_html=True)
-        st.session_state[_CSS_LOADED_KEY] = True
+    # Always emit the CSS so it survives Streamlit's element reconciliation
+    # when the user changes events, eras, or the column slider.
+    st.markdown(load_tooltip_css(), unsafe_allow_html=True)
 
     st.header(translations.get_text("event_tooltips", lang_code))
 
