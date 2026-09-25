@@ -1,5 +1,4 @@
 from datetime import datetime
-from io import BytesIO
 
 import pandas as pd
 import streamlit as st
@@ -8,6 +7,7 @@ from st_aggrid import AgGrid, AgGridTheme, DataReturnMode
 from foe_buildings import config
 from foe_buildings import i18n as translations
 from foe_buildings.data import calculations
+from foe_buildings.ui import export as ui_export
 from foe_buildings.ui import grid as ui_components
 
 
@@ -119,7 +119,7 @@ def _render_column_analysis_subtab(
         with col1:
             st.download_button(
                 label=translations.get_text("export_csv", lang_code),
-                data=export_df.to_csv(index=False, sep=";").encode("utf-8"),
+                data=ui_export.to_csv_bytes(export_df, lang_code),
                 file_name=f"{export_prefix}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
                 mime="text/csv",
                 key=f"export_{export_prefix}_csv",
@@ -249,15 +249,7 @@ def render_table_subtab(
         # --- Export Buttons ---
         col1, col2 = st.columns([1, 10])
         with col1:
-            # CSV Export with proper UTF-8 encoding and BOM
-            buffer_csv = BytesIO()
-            # Add UTF-8 BOM manually
-            buffer_csv.write("\ufeff".encode("utf-8"))
-            # Write CSV data with translated column names
-            csv_string = df_export.to_csv(index=False, sep=";")
-            buffer_csv.write(csv_string.encode("utf-8"))
-            buffer_csv.seek(0)
-            csv_data = buffer_csv.getvalue()
+            csv_data = ui_export.to_csv_bytes(df_export, lang_code)
 
             st.download_button(
                 label=translations.get_text("export_csv", lang_code),

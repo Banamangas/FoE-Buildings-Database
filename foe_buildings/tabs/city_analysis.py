@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
 import json
-from io import BytesIO
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from foe_buildings import config
 from foe_buildings import i18n as translations
 from foe_buildings.data import calculations
+from foe_buildings.ui import export as ui_export
 
 # Use logger from config
 logger = config.logger
@@ -1040,12 +1040,7 @@ def render_city_analysis_tab(
 
                 with col1:
                     # CSV Export
-                    buffer_csv = BytesIO()
-                    buffer_csv.write("\ufeff".encode("utf-8"))  # UTF-8 BOM
-                    csv_string = df_export.to_csv(index=False, sep=";")
-                    buffer_csv.write(csv_string.encode("utf-8"))
-                    buffer_csv.seek(0)
-                    csv_data = buffer_csv.getvalue()
+                    csv_data = ui_export.to_csv_bytes(df_export, lang_code)
 
                     st.download_button(
                         label=translations.get_text("export_csv", lang_code),
