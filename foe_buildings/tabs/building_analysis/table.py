@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import partial
 
 import pandas as pd
 import streamlit as st
@@ -115,7 +116,7 @@ def _render_column_analysis_subtab(
     if len(display_df) > 0:
         st.markdown("---")
         export_df = display_df.drop(columns=["Building Image"], errors="ignore")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.download_button(
                 label=translations.get_text("export_csv", lang_code),
@@ -133,6 +134,14 @@ def _render_column_analysis_subtab(
                 file_name=f"{export_prefix}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
                 mime="application/json",
                 key=f"export_{export_prefix}_json",
+            )
+        with col3:
+            st.download_button(
+                label=translations.get_text("export_xlsx", lang_code),
+                data=partial(ui_export.to_xlsx_bytes, export_df),
+                file_name=f"{export_prefix}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx",
+                mime=ui_export.XLSX_MIME,
+                key=f"export_{export_prefix}_xlsx",
             )
 
 
@@ -247,7 +256,7 @@ def render_table_subtab(
         config.logger.info(f"Column translations for export: {column_translation_map}")
 
         # --- Export Buttons ---
-        col1, col2 = st.columns([1, 10])
+        col1, col2, col3 = st.columns([1, 1, 8])
         with col1:
             csv_data = ui_export.to_csv_bytes(df_export, lang_code)
 
@@ -271,6 +280,14 @@ def render_table_subtab(
                 file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
                 mime="application/json; charset=utf-8",
                 key="export_json",
+            )
+        with col3:
+            st.download_button(
+                label=translations.get_text("export_xlsx", lang_code),
+                data=partial(ui_export.to_xlsx_bytes, df_export),
+                file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx",
+                mime=ui_export.XLSX_MIME,
+                key="export_xlsx",
             )
 
         grid_options = ui_components.build_grid_options(

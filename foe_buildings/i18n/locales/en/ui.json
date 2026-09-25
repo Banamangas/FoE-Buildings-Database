@@ -140,6 +140,7 @@
     "exclude_mode_help": "When enabled, this filter will EXCLUDE buildings that match the criteria instead of including them",
     "export_csv": "Export CSV",
     "export_json": "Export JSON",
+    "export_xlsx": "Export Excel",
     "export_profile": "⬇️ Export profile",
     "export_profile_help": "Download your current weights, context values, and boosts as a JSON file.",
     "export_results": "Export Results",

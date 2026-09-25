@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 from datetime import datetime
+from functools import partial
 from typing import Dict, List, Any, Optional, Tuple
 from foe_buildings import config
 from foe_buildings import i18n as translations
@@ -1036,7 +1037,7 @@ def render_city_analysis_tab(
                 }
                 df_export.rename(columns=column_translation_map, inplace=True)
 
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
 
                 with col1:
                     # CSV Export
@@ -1063,6 +1064,16 @@ def render_city_analysis_tab(
                         file_name=f"city_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
                         mime="application/json; charset=utf-8",
                         key="export_city_json",
+                    )
+
+                with col3:
+                    # Excel Export (keeps numeric cell types)
+                    st.download_button(
+                        label=translations.get_text("export_xlsx", lang_code),
+                        data=partial(ui_export.to_xlsx_bytes, df_export),
+                        file_name=f"city_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx",
+                        mime=ui_export.XLSX_MIME,
+                        key="export_city_xlsx",
                     )
 
             else:
